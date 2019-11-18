@@ -16,7 +16,12 @@
 #' @param df_lib A data.table containing spectral library information
 #' @param chromatogram_file A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)
 #' @param in_osw A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?
-#' @param transition_type A vector containing one of the three possible choices : c('precursor', 'detecting', 'identifying')
+#' @param transition_type A vector containing possible choices for dispalying one of the following transition group types. (Options: c('precursor', 'detecting', 'identifying') )
+#' @param unit_mod_list A list of potential modifiable forms. (Default: NULL)
+#' @param max_Int A numeric value indicating the maximum intensity. This is used for FacetZooming the y-axis. (Default: NULL)
+#' @param smooth_chromatogram  A list object containing the polynomial filter order (p), and the bandwidth (number of data-points to smooth over, n). (Default: list(p=4, n=9)) 
+#' @param doFacetZoom A logical value for calling Facet_Zoom function to zoom in the y axis based on the max_Int/4. (Default: FALSE)
+#' @param FacetFcnCall A personalized function call to Facet_Zoom. I.e. FacetFcnCall = facet_zoom(xlim = c(3950, 4050), ylim = c(0, 10000)). (Default: NULL)
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -28,10 +33,9 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     Isoform_Target_Charge, 
                     in_osw=NULL, 
                     transition_type=c('detecting'), 
-                    intersecting_mz=NULL, 
                     uni_mod_list=NULL, 
                     max_Int=NULL, 
-                    smooth_chromatogram=TRUE,
+                    smooth_chromatogram=list(p = 4, n = 9),
                     doFacetZoom=FALSE, 
                     FacetFcnCall=NULL,
                     top_trans_mod_list=NULL, 
@@ -78,7 +82,9 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     }
   }
   
-  ## Filter library data for specific information on transition type selected
+  ##*******************************************************
+  ##    Extract Precursor Information from Library
+  ##*******************************************************
   if ( 'precursor' %in% transition_type ){
     cat(  '--> Extracting Precursor Transition...\n')
     df_lib %>%
@@ -87,6 +93,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge )-> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for precursor transition in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   }
+  
+  ##******************************************************************
+  ##    Extract Detecting Transitions Information from Library
+  ##******************************************************************
   if ( 'detecting' %in% transition_type){
     cat(  '--> Extracting Detecting Transitions...\n')
     df_lib %>%
@@ -95,6 +105,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       dplyr::filter( DETECTING==1 ) -> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   } 
+  
+  ##******************************************************************
+  ##    Extract Identifying Transitions Information from Library
+  ##******************************************************************
   if ( 'identifying' %in% transition_type ){
     cat(  '--> Extracting Identifying Transitions...\n')
       df_lib %>%
@@ -103,6 +117,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         dplyr::filter( DETECTING==0 ) -> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for identifying transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   }
+  
+  ##******************************************************************
+  ##    Extract OpenSwath Information from .osw
+  ##******************************************************************
   if ( !is.null(in_osw) ) {
     ## OSW Information
     if ( !is.null( in_osw ) ){
@@ -274,14 +292,14 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   
   chrom <- getChromatogramDataPoints_( chromatogram_file, frag_ids  )
   
-  if (smooth_chromatogram==TRUE){
+  if ( length(smooth_chromatogram)>0 ){
     cat(  '----> Smoothing Chromatogram Data...\n')
   }
   ## Smooth Intensity values to make Chromatogram look nice
   for (i in seq(1:length(chrom))){
     names(chrom[[i]]) <- c('RT','Int')
-    if (smooth_chromatogram==TRUE){
-      chrom[[i]]$Int <- signal::sgolayfilt(chrom[[i]]$Int, p = 4, n = 9)
+    if ( length(smooth_chromatogram)>0 ){
+      chrom[[i]]$Int <- signal::sgolayfilt( chrom[[i]]$Int, p = smooth_chromatogram$p, n = smooth_chromatogram$n )
     }
   }
   
