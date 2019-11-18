@@ -16,7 +16,7 @@
 #' @param df_lib A data.table containing spectral library information
 #' @param chromatogram_file A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)
 #' @param in_osw A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?
-#' @param @TODO will add more decriptions for other params soon
+#' @param transition_type A vector containing one of the three possible choices : c('precursor', 'detecting', 'identifying')
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -27,7 +27,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     chromatogram_file, 
                     Isoform_Target_Charge, 
                     in_osw=NULL, 
-                    transition_type='detecting', 
+                    transition_type=c('detecting'), 
                     intersecting_mz=NULL, 
                     uni_mod_list=NULL, 
                     max_Int=NULL, 
@@ -79,62 +79,34 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   }
   
   ## Filter library data for specific information on transition type selected
-  if ( transition_type=='precursor' ){
-    cat( R.utils::Verbose(threshold = verbosity), '--> Extracting Precursor Transition...\n')
+  if ( 'precursor' %in% transition_type ){
+    cat(  '--> Extracting Precursor Transition...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( TYPE=="" ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge )-> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for precursor transition in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
-  } else if ( transition_type=='detecting_intersection' ){
-    cat( R.utils::Verbose(threshold = verbosity), '--> Extracting Intersecting Detecting Transitions...\n')
-    if ( !is.null( intersecting_mz ) ){
-      df_lib %>%
-        dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
-        dplyr::filter( DETECTING==1 ) %>%
-        dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-        dplyr::filter( PRODUCT_MZ %in% intersecting_mz ) -> df_lib_filtered
-    } else {
-      df_lib %>%
-        dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
-        dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-        dplyr::filter( DETECTING==1 ) -> df_lib_filtered
-    }
-    if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for common detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
-  } else if ( transition_type=='detecting_unique' ){
-    cat( R.utils::Verbose(threshold = verbosity), '--> Extracting Unique Detecting Transitions...\n')
-    df_lib %>%
-      dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
-      dplyr::filter( DETECTING==1 ) %>%
-      dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-      dplyr::filter( !(PRODUCT_MZ %in% intersecting_mz) )-> df_lib_filtered
-    if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for unique detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
-  } else if ( transition_type=='detecting' ){
-    cat( R.utils::Verbose(threshold = verbosity), '--> Extracting Unique Detecting Transitions...\n')
+  }
+  if ( 'detecting' %in% transition_type){
+    cat(  '--> Extracting Detecting Transitions...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
       dplyr::filter( DETECTING==1 ) -> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
-  } else if ( transition_type=='identifying' ){
-    cat( R.utils::Verbose(threshold = verbosity), '--> Extracting Identifying Transitions...\n')
-    if ( !(is.null(top_trans_mod_list)) ){
+  } 
+  if ( 'identifying' %in% transition_type ){
+    cat(  '--> Extracting Identifying Transitions...\n')
       df_lib %>%
         dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
         dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
         dplyr::filter( DETECTING==0 ) -> df_lib_filtered
-    } else {
-      df_lib %>%
-        dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
-        dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-        dplyr::filter( DETECTING==0 ) -> df_lib_filtered
-      
-    }
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for identifying transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
-  } else {
+  }
+  if ( !is.null(in_osw) ) {
     ## OSW Information
     if ( !is.null( in_osw ) ){
-      cat( R.utils::Verbose(threshold = verbosity), '--> Extracting OpenSwathResults Info...\n')
+      cat(  '--> Extracting OpenSwathResults Info...\n')
       df_lib %>%
         dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
         dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
@@ -221,7 +193,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           # Y intcrements
           y_increment = 0
           for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
-            if ( any(osw_RT_pkgrps_filtered$RT[RT_idx] %in% c(5691.37, 5737.26)) ){ cat('Skipping: ', osw_RT_pkgrps_filtered$RT[RT_idx], '\n', sep=''); next }
+            # if ( any(osw_RT_pkgrps_filtered$RT[RT_idx] %in% c(5691.37, 5737.26)) ){ cat('Skipping: ', osw_RT_pkgrps_filtered$RT[RT_idx], '\n', sep=''); next }
             point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
                                           y=((max(max_Int)/ 4 )-y_increment),
                                           # y=((1000)-y_increment),
@@ -288,7 +260,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   }
   
   ## Get Transition IDs for chromatogram data extraction
-  cat( R.utils::Verbose(threshold = verbosity), '----> Getting Transition IDs and Extracting Chromatogram Data...\n')
+  cat(  '----> Getting Transition IDs and Extracting Chromatogram Data...\n')
   frag_ids <- list()
   if( length(as.character( df_lib_filtered$TRANSITION_ID ))>1 ){
     frag_ids[[1]] <- as.character( df_lib_filtered$TRANSITION_ID )
@@ -303,7 +275,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   chrom <- getChromatogramDataPoints_( chromatogram_file, frag_ids  )
   
   if (smooth_chromatogram==TRUE){
-    cat( R.utils::Verbose(threshold = verbosity), '----> Smoothing Chromatogram Data...\n')
+    cat(  '----> Smoothing Chromatogram Data...\n')
   }
   ## Smooth Intensity values to make Chromatogram look nice
   for (i in seq(1:length(chrom))){
@@ -348,13 +320,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   if ( transition_type=='precursor' ){
     graphic_obj <- graphic_obj + 
       geom_line( data=df_plot, aes(RT, Int, group=Transition), show.legend = T, alpha=0.65, linetype='solid', col='black' )
-  } else if ( transition_type=='detecting_intersection' ){
-    graphic_obj <- graphic_obj + 
-      geom_line(data=df_plot, aes(RT, Int, group=Transition), show.legend = F, alpha=0.95, col='gray') 
-  } else if ( transition_type=='detecting_unique' ){
-    graphic_obj <- graphic_obj + 
-      geom_line(data=df_plot, aes(RT, Int, group=Transition), alpha=0.75, col='black', linetype='dotted', show.legend = F) 
-    # theme( legend.position = 'bottom' )
   } else if ( transition_type=='detecting' ){
     graphic_obj <- graphic_obj + 
       geom_line(data=df_plot, aes(RT, Int, group=Transition), alpha=0.75, col='gray', linetype='solid', show.legend = F) 
