@@ -1,0 +1,17 @@
+Package: mstools
+Type: Package
+Title: What the package does (short line)
+Version: 1.0
+Date: 2019-11-12
+Author: Justin Sing
+Maintainer: Who to complain to <yourfault@somewhere.net>
+Description: More about what it does (maybe more than one line)
+License: GPL (>= 2)
+RoxygenNote: 6.1.1
+LinkingTo: 
+    Rcpp,
+     RcppArmadillo 
+Imports: 
+    Rcpp,
+     RcppArmadillo 
+Encoding: UTF-8
