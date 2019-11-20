@@ -22,6 +22,7 @@
 #' @param smooth_chromatogram  A list object containing the polynomial filter order (p), and the bandwidth (number of data-points to smooth over, n). (Default: list(p=4, n=9)) 
 #' @param doFacetZoom A logical value for calling Facet_Zoom function to zoom in the y axis based on the max_Int/4. (Default: FALSE)
 #' @param FacetFcnCall A personalized function call to Facet_Zoom. I.e. FacetFcnCall = facet_zoom(xlim = c(3950, 4050), ylim = c(0, 10000)). (Default: NULL)
+#' @param top_trans_mod_list A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities. 
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
