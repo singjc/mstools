@@ -1,4 +1,3 @@
-
 #// **********************************************************************************************
 #//                         getTransitionScores.R
 #// **********************************************************************************************
@@ -29,11 +28,13 @@ peptide_id=''
 ) {
 
 # Load Required Libraries
+library(dplyr)
+library(dbplyr)
 
 # Connect to database
 osw_db <- DBI::dbConnect( RSQLite::SQLite(), oswfile )
 
-# Get RUN ID from database
+# Add to query statement for extracting data for a specific run, using run id.
 if ( run_name != '' ){
 	run_id_df = getRunID_( oswfile, run_name )
 	run_id_query = sprintf( "INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID AND FEATURE.RUN_ID=(%s)", df$ID )

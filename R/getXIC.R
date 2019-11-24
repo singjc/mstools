@@ -16,13 +16,14 @@
 #' @param df_lib A data.table containing spectral library information
 #' @param chromatogram_file A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)
 #' @param in_osw A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?
-#' @param transition_type A vector containing possible choices for dispalying one of the following transition group types. (Options: c('precursor', 'detecting', 'identifying') )
+#' @param transition_type A vector containing possible choices for dispalying one of the following transition group types. getXIC needs to be called for each option (Options: c('precursor', 'detecting', 'identifying') )
 #' @param unit_mod_list A list of potential modifiable forms. (Default: NULL)
 #' @param max_Int A numeric value indicating the maximum intensity. This is used for FacetZooming the y-axis. (Default: NULL)
 #' @param smooth_chromatogram  A list object containing the polynomial filter order (p), and the bandwidth (number of data-points to smooth over, n). (Default: list(p=4, n=9)) 
 #' @param doFacetZoom A logical value for calling Facet_Zoom function to zoom in the y axis based on the max_Int/4. (Default: FALSE)
 #' @param FacetFcnCall A personalized function call to Facet_Zoom. I.e. FacetFcnCall = facet_zoom(xlim = c(3950, 4050), ylim = c(0, 10000)). (Default: NULL)
-#' @param top_trans_mod_list A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities. 
+#' @param top_trans_mod_list A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities.
+#' @param RT_pkgrps A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -53,7 +54,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   
   # Helper Functions --------------------------------------------------------
   
-  #' @export
   #' @description Check Dataframe, if empty return an object and stop function call
   #' 
   #' @param df A data.frame/data.table/matrix object to check for number of rows
@@ -70,7 +70,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     }
   }
   
-  #' @export
   #' @description  Check numeric values if not NULL
   #' 
   #' @param numeric_obj Check if an numeric object is not NULL a
@@ -122,24 +121,28 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##******************************************************************
   ##    Extract OpenSwath Information from .osw
   ##******************************************************************
-  if ( !is.null(in_osw) ) {
-    ## OSW Information
+  
     if ( !is.null( in_osw ) ){
       cat(  '--> Extracting OpenSwathResults Info...\n')
+      ## Filter library dataframe for matching evaluated modification sequence, precursor charge and for detecting transitions. 
       df_lib %>%
         dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
         dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
         dplyr::filter( DETECTING==1 ) -> df_lib_filtered
+      
+      ## @TODO: Need to make this more robust for other file formats or naming conventions
       run_name <- gsub('_osw_chrom[.]sqMass$', '', basename(chromatogram_file))
+      ## @TODO: Maybe remove this or leave the whole filename. This is very specific for 3 datasets..
       run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
-      mod_position <- getModificationPosition_(mod, character_index = T)+1
+      ## Replace UniMod name with actual modification name
+      ## @TODO: Need to make this more robust for other types of modifications, or for naked peptides.
       mod_form_rename <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', mod)))))
       ## Filter for precursor id that matches target charge state
       df_lib_filtered %>%
         dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
         select( PRECURSOR_ID ) %>%
         unique() %>% as.matrix() %>% as.numeric() -> target_charge_precursor
-      ## @TODPO: Need to make this more robust for later
+      ## @TODO: Need to make this more robust for later
       if( mod==mod_form_rename ){
         osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
         # # Original OSW Peptide Names 
@@ -151,6 +154,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       }
       ## Check if openswath dataframe is empty
       if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe\n' ) ){ 
+        ## If osw_df is empty, return graphic object and max_Int value.
         graphic_obj <- graphic_obj +
           ggtitle(  mod ) +
           labs(subtitle = paste('Run: ', run, 
@@ -159,49 +163,59 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                                 ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, sep=''))
         return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) 
       }
+      ## Filter OSW dataframe for precursor with target charge.
+      ## @TODO: Maybe this is repetitive and pointless, since we use target_charge_precursor in OSW data extraction in getOSWData_
       if ( !is.null(Isoform_Target_Charge) ){
         osw_df %>%
           dplyr::filter( Charge==Isoform_Target_Charge ) -> osw_df
       }
+      ## Filter OSW dataframe for Best Peak Feature.
       if ( !is.null( unlist(osw_df$ipf_pep) ) ){
-        # Remove rows with NULL value in ipf_pep
+        ## Remove rows with NULL value in ipf_pep
         osw_df %>%
           dplyr::filter( !is.null(ipf_pep) ) %>%
           dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
-        
+       ## Get data for the best peak as defined by the feature with the lowest IPF posterior error probability 
         osw_df %>%
           dplyr::filter( ipf_pep==min(ipf_pep) ) -> osw_df_filtered #### No longer filter by peak group
       } else {
+        ## Get data for the best peak as defined by peak_group_rank == 1
         osw_df %>%
           dplyr::filter( peak_group_rank==1 ) -> osw_df_filtered #### No longer filter by peak group
       }
+      ## Extract some useful scores
       m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
       ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
       ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
       ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]] )
-      
+      ##****************************************************
+      ## Append OSW information to Chromatogram ggplot.
+      ##****************************************************
       graphic_obj <- graphic_obj +
         geom_vline(xintercept = osw_df_filtered$RT, color='red', size = 1.5 ) +
         geom_vline(xintercept = osw_df_filtered$leftWidth, color='red', linetype='dotted', size=1 ) +
         geom_vline(xintercept = osw_df_filtered$rightWidth, color='red', linetype='dotted', size=1 ) + # default size 0.65
         ggtitle(  mod ) +
         labs(subtitle = paste(
-          # 'Run: ', run, 
-          # ' | Precursor: ', df_lib_filtered$PRECURSOR_ID,
-          # ' | Peptide: ', df_lib_filtered$PEPTIDE_ID,
+          'Run: ', run, 
+          ' | Precursor: ', df_lib_filtered$PRECURSOR_ID,
+          ' | Peptide: ', df_lib_filtered$PEPTIDE_ID,
           'Charge: ', osw_df_filtered$Charge,
           ' | m/z: ', osw_df_filtered$mz, 
           ' | RT: ', osw_df_filtered$RT, 
-          # '\nlib_RT: ', round(osw_df_filtered$assay_iRT, digits = 4),
-          ' | ms2-m-score: ', m_score,
-          ' | q_value: ', ipf_m_score,
+          '\nlib_RT: ', round(osw_df_filtered$assay_iRT, digits = 4),
+          ' | ms2_m-score: ', m_score,
+          ' | ipf_m-score: ', ipf_m_score,
           ' | ipf_pep: ', ipf_pep,
           ' | ms2_pkgrp_rank: ', ms2_pkgrp_rank,
           sep='')) 
-      ### Plot Other peak rank groups
+      ##*************************************
+      ## Plot Other peak rank groups
+      ##*************************************
       if( !is.null(RT_pkgrps) ){
+        ## Get OSW data for other potential peaks/features
         osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
-        
+        ## Filter out the top best feature  
         osw_RT_pkgrps %>%
           dplyr::filter( RT %in% RT_pkgrps ) %>%
           dplyr::filter( RT != osw_df_filtered$RT ) %>%
@@ -212,7 +226,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           # Y intcrements
           y_increment = 0
           for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
-            # if ( any(osw_RT_pkgrps_filtered$RT[RT_idx] %in% c(5691.37, 5737.26)) ){ cat('Skipping: ', osw_RT_pkgrps_filtered$RT[RT_idx], '\n', sep=''); next }
             point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
                                           y=((max(max_Int)/ 4 )-y_increment),
                                           # y=((1000)-y_increment),
@@ -227,11 +240,15 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           }
         }
       }
-      
+      ##*************************************
+      ##  Facet Zoom Chromatogram Plot
+      ##*************************************
       if ( doFacetZoom==TRUE ){
+        ## Check to see if user supplied there own face_zoom function
         if ( !is.null(FacetFcnCall) ){
           graphic_obj <- graphic_obj + FacetFcnCall
         } else {
+          ## If the Max Intensity is greater than 1000, zoom into the chromatogram taking the max Intensity divided by 4
           if ( max(max_Int) > 1000 ){
             graphic_obj <- graphic_obj +
               # facet_zoom(ylim = c(0, (1000) ))
@@ -272,13 +289,11 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       }
       
       return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
-    } else {
-      cat(red( bold(underline(transition_type)), ' is not a supported argument for transition_type!!!\n'), sep='')
-      return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
-    }
-  }
+    } 
   
+  ##******************************************************** 
   ## Get Transition IDs for chromatogram data extraction
+  ##********************************************************
   cat(  '----> Getting Transition IDs and Extracting Chromatogram Data...\n')
   frag_ids <- list()
   if( length(as.character( df_lib_filtered$TRANSITION_ID ))>1 ){
@@ -287,12 +302,14 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     frag_ids[[1]] <- list(as.character( df_lib_filtered$TRANSITION_ID ))
   }
   
-  #***************************************#
-  #***    Extract Chromatogram Data    ***#
-  #***************************************#
-  
+  ##***************************************
+  ##    Extract Chromatogram Data    
+  ##***************************************
   chrom <- getChromatogramDataPoints_( chromatogram_file, frag_ids  )
   
+  ##***************************************
+  ##    Smooth Chromatogram
+  ##***************************************
   if ( length(smooth_chromatogram)>0 ){
     cat(  '----> Smoothing Chromatogram Data...\n')
   }
@@ -303,23 +320,19 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       chrom[[i]]$Int <- signal::sgolayfilt( chrom[[i]]$Int, p = smooth_chromatogram$p, n = smooth_chromatogram$n )
     }
   }
-  
+  ## Combine list of Intensity dataframs and Retention Time dataframes into one Dataframe mapping by Transition ID 
   df_plot <- bind_rows(mclapply(chrom, data.frame), .id='Transition')
-  
+  ## Append Transition information to Int-RT dataframe, filter for precursor transition or MS2 transitions 
   if ( transition_type=='precursor' ){
+    ## Extraction Transtion Information
     df_lib_filtered %>% 
       dplyr::filter( TRANSITION_ID %in% unique(df_plot$Transition) ) %>%
       select( TRANSITION_ID, PRECURSOR_CHARGE ) -> transition_info
+    ## Append information to Precursor Transition ID
     transition_ids <- paste( paste('0 - ',transition_info$TRANSITION_ID,sep=''), paste(transition_info$PRECURSOR_CHARGE,'+',sep=''), sep='_')
     tmp <- sapply(seq(1,length(df_plot$Transition)), function(i){ transition_ids[grepl(paste('0 - ',df_plot$Transition[i],'_*',sep=''), transition_ids)] } )
   } else {
-    # if ( transition_type=='identifying' ){
-    #   if( !(is.null(top_trans_mod_list)) ){
-    #     cat( '----> Extracting Top Transitions with low PEPs..\n')
-    #     df_plot %>%
-    #       dplyr::filter( Transition %in% (top_trans_mod_list[[mod]]$transition_id[top_trans_mod_list[[mod]]$transition_pep<1])[1:10] ) -> df_plot
-    #   }
-    # }
+    ## Similar to above, but extract MS2 Transition ID information
     df_lib_filtered %>% 
       dplyr::filter(  TRANSITION_ID %in% unique(df_plot$Transition) ) %>%
       select( TRANSITION_ID, CHARGE, TYPE, ORDINAL, PRODUCT_MZ ) -> transition_info
@@ -329,23 +342,36 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   df_plot$TRANSITION_ID <- df_plot$Transition
   df_plot$Transition <- tmp
   
+  ##****************************
   ## Check Max Intensity
+  ##****************************
   if ( transition_type!='precursor' & dim(df_plot)[1]>0 ){
     # if ( max(df_plot$Int) > max_Int ){ max_Int <- max(df_plot$Int) }
     max_Int <- c(max_Int, max(df_plot$Int[is.finite(df_plot$Int)]))
   }
   
+  ##***************************
   ## Plotting Action
+  ##***************************
   if ( transition_type=='precursor' ){
+    ##*********************************
+    ## Plotting PRECURSOR Trace
+    ##*********************************
     graphic_obj <- graphic_obj + 
       geom_line( data=df_plot, aes(RT, Int, group=Transition), show.legend = T, alpha=0.65, linetype='solid', col='black' )
   } else if ( transition_type=='detecting' ){
+    ##*********************************
+    ## Plotting DETECTING Traces
+    ##*********************************
     graphic_obj <- graphic_obj + 
       geom_line(data=df_plot, aes(RT, Int, group=Transition), alpha=0.75, col='gray', linetype='solid', show.legend = F) 
   } else{
-    
+    ##*********************************
+    ## Plotting IDENTIFYING Traces
+    ##*********************************
     df_plot <- merge( df_plot, select( df_lib_filtered[df_lib_filtered$TRANSITION_ID %in% unique(df_plot$TRANSITION_ID),], c(TRANSITION_ID, TRAML_ID) ), by='TRANSITION_ID' )
     
+    ## @TODO: Will need a better way to do this
     if ( !(is.null(top_trans_mod_list)) ){
       
       #### Unique Transitions
@@ -356,13 +382,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                            (!grepl(glob2rx('*\\|*'), 
                                    gsub('.*\\{|\\}.*','',TRAML_ID))) ) %>%
           dplyr::filter( TRANSITION_ID %in% (top_trans_mod_list[[mod]]$transition_id[top_trans_mod_list[[mod]]$transition_pep<1]) ) -> tmp_plot
-        
-        # df_plot %>%
-        #   dplyr::filter( grepl(glob2rx("*_\\{ESTAEPDSLS(Phospho)R(Label:13C(6)15N(4))\\}_*"), TRAML_ID) ) -> tmp_plot
-        # 
-        # 
-        # df_plot %>%
-        #   dplyr::filter( grepl(glob2rx("*_\\{ESTAEPDS(Phospho)LSR(Label:13C(6)15N(4))\\}_*"), TRAML_ID) ) -> tmp_plot
         
         # Number of Transitions to display
         if ( !is.null(show_n_transitions) ){

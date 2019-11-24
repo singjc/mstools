@@ -1,8 +1,6 @@
 # Description
 ***
-This package contains several scripts that can be used for chromatogram visualization and OSW data extraction.
-
-@TODO: Still Work-In-Progress....
+This package contains several R scripts that can be used for chromatogram visualization and .OSW and .PQP data extraction.
 
 # Installation
 ***
@@ -10,4 +8,4 @@ This package contains several scripts that can be used for chromatogram visualiz
 library(devtools)
 install_github("https://github.com/Roestlab/mstools")
 ```
-
+# Work-In-Progress

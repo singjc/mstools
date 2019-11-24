@@ -29,12 +29,12 @@ BEGIN_RCPP
 END_RCPP
 }
 // decodeLinear
-void decodeLinear(const std::vector<unsigned char>& data, arma::vec result);
+void decodeLinear(const std::vector<unsigned char>& data, std::vector<double>& result);
 RcppExport SEXP _mstools_decodeLinear(SEXP dataSEXP, SEXP resultSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const std::vector<unsigned char>& >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type result(resultSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type result(resultSEXP);
     decodeLinear(data, result);
     return R_NilValue;
 END_RCPP

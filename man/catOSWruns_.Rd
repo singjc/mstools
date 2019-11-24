@@ -6,7 +6,7 @@
 \usage{
 catOSWruns_(sqMass_files, in_osw, which_m_score = "m_score",
   m_score_filter = 0.05, report_top_single_result = T,
-  run_sub_expression = NULL)
+  run_sub_expression = NULL, ...)
 }
 \arguments{
 \item{sqMass_files}{An array of character paths to the chromatograms that have corresponding names in the OSW file.}

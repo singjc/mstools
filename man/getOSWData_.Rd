@@ -7,7 +7,8 @@
 getOSWData_(oswfile, run_name = "", precursor_id = "",
   peptide_id = "", mod_peptide_id = "", mod_residue_position = "",
   peak_group_rank_filter = FALSE, pep_list = "", mscore_filter = "",
-  ipf_filter = "", ipf_score = FALSE, ms2_score = TRUE)
+  ipf_filter = "", ipf_score = FALSE, ms2_score = TRUE,
+  decoy_filter = TRUE)
 }
 \arguments{
 \item{oswfile}{A character vector of the absolute path and filename of the osw results file. (Must be .osw format)}
@@ -33,6 +34,8 @@ getOSWData_(oswfile, run_name = "", precursor_id = "",
 \item{ipf_score}{A logical value to extract data using IPF Score results. (Default: FALSE)}
 
 \item{ms2_score}{A logical value to extract data using MS2 Score results. (Default: TRUE)}
+
+\item{decoy_filter}{A logical value to filter decoys out of final results. (Default: TRUE)}
 }
 \value{
 A data.table containing OpenSwath Results information.

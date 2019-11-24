@@ -25,6 +25,7 @@
 #' @param ipf_filter A numeric value to filter results by IPF PEP. (Default: '')
 #' @param ipf_score A logical value to extract data using IPF Score results. (Default: FALSE)
 #' @param ms2_score A logical value to extract data using MS2 Score results. (Default: TRUE)
+#' @param  decoy_filter A logical value to filter decoys out of final results. (Default: TRUE)
 #' @return A data.table containing OpenSwath Results information. 
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -40,7 +41,8 @@ getOSWData_ <- function ( oswfile,
                           mscore_filter='',
                           ipf_filter='',
                           ipf_score=FALSE,
-                          ms2_score=TRUE){
+                          ms2_score=TRUE,
+                          decoy_filter=TRUE){
   
   
   # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
@@ -56,7 +58,7 @@ getOSWData_ <- function ( oswfile,
   # Get RUN ID from database
   if (run_name != ''){
     run_id_df = getRunID_(oswfile, run_name)
-    run_id_query = sprintf("INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID AND FEATURE.RUN_ID=(%s)", df$ID)
+    run_id_query = sprintf("INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID AND FEATURE.RUN_ID=(%s)", run_id_df$ID)
   } else {
     run_id_query = 'INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID'
   }
@@ -148,6 +150,7 @@ getOSWData_ <- function ( oswfile,
        FEATURE.ID AS id,
        PEPTIDE.UNMODIFIED_SEQUENCE AS Sequence,
        PEPTIDE.MODIFIED_SEQUENCE AS FullPeptideName,
+       PEPTIDE.MODIFIED_SEQUENCE AS ipf_FullPeptideName,
        PRECURSOR.CHARGE AS Charge,
        PRECURSOR.PRECURSOR_MZ AS mz,
        FEATURE_MS2.AREA_INTENSITY AS Intensity,
@@ -185,11 +188,20 @@ getOSWData_ <- function ( oswfile,
   } else {
     qval_filter_query = ''
   }
+  
+  ## filter Out Decoys
+  if ( decoy_filter==TRUE ){
+    decoy_filter_query = "AND PRECURSOR.DECOY=0"
+  } else {
+    decoy_filter_query = ""
+  }
+  
+  ## Construct Query Statement
   # print(filter_multiple_peps)
   stmt = sprintf(
     "%s
 FROM PRECURSOR
-INNER JOIN PRECURSOR_PEPTIDE_MAPPING ON PRECURSOR.ID = PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID AND PRECURSOR.DECOY=0
+INNER JOIN PRECURSOR_PEPTIDE_MAPPING ON PRECURSOR.ID = PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID %s
 %s
 %s
 %s
@@ -205,8 +217,9 @@ LEFT JOIN SCORE_MS2 ON SCORE_MS2.FEATURE_ID = FEATURE.ID
 %s
 ORDER BY transition_group_id,
          peak_group_rank
-", select_as_stmt, peptide_query, precursor_query, run_id_query, include_ipf_score, pk_grp_rnk_fil_query, filter_multiple_peps, qval_filter_query, mod_peptide_query, mod_residue_position_query)
+", select_as_stmt, decoy_filter_query, peptide_query, precursor_query, run_id_query, include_ipf_score, pk_grp_rnk_fil_query, filter_multiple_peps, qval_filter_query, mod_peptide_query, mod_residue_position_query)
   
+  cat(stmt)
   
   # Query Databasse
   df_osw <- collect( tbl(osw_db, sql(stmt)) )

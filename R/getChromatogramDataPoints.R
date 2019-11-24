@@ -77,7 +77,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
       
       for ( row in seq(1, nrow(data)) ){
         row = 1
-        result <- numeric()
+        result <- matrix()
         
         data_row <- data[ row, ]
         
@@ -85,13 +85,13 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
           # install.packages("remotes")
           # remotes::install_github("statwonk/Rcompression")
           
-          tmp <- base::charToRaw( Rcompression::uncompress( data_row$DATA[[1]] ) )
+          tmp <- rawToChar( memDecompress(data_row$DATA[[1]], type='gzip', asChar = T) )
           
           
           
           if ( length( tmp ) > 0 ){
-            mstools::decodeLinear( tmp, result)
-          }
+            result <- mstools::decodeLinear( tmp, result)
+         } 
           
         }
         

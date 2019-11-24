@@ -5,10 +5,11 @@
 \title{Plot and Extracted Ion Chromatogram}
 \usage{
 getXIC(graphic_obj = ggplot2::ggplot(), mod, df_lib, chromatogram_file,
-  Isoform_Target_Charge, in_osw = NULL, transition_type = "detecting",
-  intersecting_mz = NULL, uni_mod_list = NULL, max_Int = NULL,
-  smooth_chromatogram = TRUE, doFacetZoom = FALSE,
-  FacetFcnCall = NULL, top_trans_mod_list = NULL, RT_pkgrps = NULL,
+  Isoform_Target_Charge, in_osw = NULL,
+  transition_type = c("detecting"), uni_mod_list = NULL,
+  max_Int = NULL, smooth_chromatogram = list(p = 4, n = 9),
+  doFacetZoom = FALSE, FacetFcnCall = NULL,
+  top_trans_mod_list = NULL, RT_pkgrps = NULL,
   plotIdentifying.Unique = NULL, plotIdentifying.Shared = NULL,
   plotIdentifying.Against = NULL, show_n_transitions = NULL,
   show_legend = T, verbosity = 0)
@@ -24,7 +25,21 @@ getXIC(graphic_obj = ggplot2::ggplot(), mod, df_lib, chromatogram_file,
 
 \item{in_osw}{A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?}
 
-\item{@TODO}{will add more decriptions for other params soon}
+\item{transition_type}{A vector containing possible choices for dispalying one of the following transition group types. getXIC needs to be called for each option (Options: c('precursor', 'detecting', 'identifying') )}
+
+\item{max_Int}{A numeric value indicating the maximum intensity. This is used for FacetZooming the y-axis. (Default: NULL)}
+
+\item{smooth_chromatogram}{A list object containing the polynomial filter order (p), and the bandwidth (number of data-points to smooth over, n). (Default: list(p=4, n=9))}
+
+\item{doFacetZoom}{A logical value for calling Facet_Zoom function to zoom in the y axis based on the max_Int/4. (Default: FALSE)}
+
+\item{FacetFcnCall}{A personalized function call to Facet_Zoom. I.e. FacetFcnCall = facet_zoom(xlim = c(3950, 4050), ylim = c(0, 10000)). (Default: NULL)}
+
+\item{top_trans_mod_list}{A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities.}
+
+\item{RT_pkgrps}{A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)}
+
+\item{unit_mod_list}{A list of potential modifiable forms. (Default: NULL)}
 
 \item{df}{A data.frame/data.table/matrix object to check for number of rows}
 

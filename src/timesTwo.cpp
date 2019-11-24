@@ -395,12 +395,24 @@ size_t decodeLinear(
 // [[Rcpp::export]]
 void decodeLinear(
     const std::vector<unsigned char> &data,
-    arma::vec result
+    std::vector<double> &result
 ) {
+  std::cout << "This is data: " << &data << '\n';
+  std::cout << typeid(&data).name() << '\n';
+  std::cout << "Data size: " << data.size() << '\n';
+  std::cout << "This is result: " << &result << '\n';
+  std::cout << typeid(&result).name() << '\n';
+  std::cout << "Result size: " << result.size() << '\n';
   size_t dataSize = data.size();
+  std::cout << "Line 407" << '\n';
   result.resize((dataSize - 8) * 2);
+  std::cout << "Line 409" << '\n';
+  std::cout << "Result size2: " << result.size() << '\n';
+  std::cout << "Line 411" << '\n';
   size_t decodedLength = decodeLinear(&data[0], dataSize, &result[0]);
+  std::cout << "Line 413" << '\n';
   result.resize(decodedLength);
+  std::cout << "Result size3: " << result.size() << '\n';
 }
 
 /////////////////////////////////////////////////////////////
