@@ -26,8 +26,12 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
   DEBUG=F
   if ( DEBUG ) {
     in_sqMass="/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/phospho_enriched_U2OS/Results/Results_New_Lib/yanliu_I170114_016_PhosNoco4_SW/yanliu_I170114_016_PhosNoco4_SW_osw_chrom.sqMass"
-  in_osw = "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/phospho_enriched_U2OS/Results/Results_New_Lib/pyprophet/merged_runs.osw"
-     }
+    in_osw = "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/phospho_enriched_U2OS/Results/Results_New_Lib/pyprophet/merged_runs.osw"
+    
+    ## Synth_Phso
+    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
+    in_sqMass <-  "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold//Dilution_1_0/chludwig_K150309_013_SW_0_osw_chrom.sqMass" 
+  }
   
   list_comparisons <- lapply(sqMass_files, function( in_sqMass ){
     
@@ -37,7 +41,7 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     # Extract OpenSwath REsults for Specfific run
     osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=T, pep_list='', ... )
     
-    osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=T, pep_list='', decoy_filter = F, ipf_score = F )
+    # osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=T, pep_list='', decoy_filter = T, ipf_score = T )
     
     # Original OSW Peptide Names
     osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
@@ -53,10 +57,12 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
         dplyr::filter( Sequence=="ADEICIAGSPLTPR")
       
     }
-   
-    # Keep only Rows that correspond to the correct Assay
-    osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName ) -> osw_df
-
+    
+    if ( which_m_score=='m_score' ){
+      # Keep only Rows that correspond to the correct Assay
+      osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName ) -> osw_df
+    }
+    
     #********************#
     #***     DEBUG    ***#
     #********************#

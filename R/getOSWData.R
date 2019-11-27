@@ -219,10 +219,11 @@ ORDER BY transition_group_id,
          peak_group_rank
 ", select_as_stmt, decoy_filter_query, peptide_query, precursor_query, run_id_query, include_ipf_score, pk_grp_rnk_fil_query, filter_multiple_peps, qval_filter_query, mod_peptide_query, mod_residue_position_query)
   
-  cat(stmt)
-  
   # Query Databasse
   df_osw <- collect( tbl(osw_db, sql(stmt)) )
+  
+  cat("Dimensions of OSW Results file: ", dim(df_osw), "\n")
+  
   # Disconnect from database
   DBI::dbDisconnect(osw_db)
   
