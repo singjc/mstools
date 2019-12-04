@@ -63,6 +63,13 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
         - data contains the raw (blob) data for a single data array
     "
       
+      hexToText <- function(msg){
+        hex <- sapply(seq(1, nchar(as.character(msg)), by=2), 
+                      function(x) substr(msg, x, x+1))
+        hex <- subset(hex, !hex == "00")
+        gsub('[^[:print:]]+', '', rawToChar(as.raw(strtoi(hex, 16L))))
+      }
+      
       stmt <- "SELECT CHROMATOGRAM_ID, COMPRESSION, DATA_TYPE, DATA FROM DATA WHERE CHROMATOGRAM_ID IN ("
       for ( myid in as.matrix(chrom_index_df[,1]) ){
         stmt <- paste( stmt,  myid, ",", sep='' )
@@ -77,7 +84,8 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
       
       for ( row in seq(1, nrow(data)) ){
         row = 1
-        result <- matrix()
+        result <- numeric()
+        
         
         data_row <- data[ row, ]
         
@@ -85,19 +93,22 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
           # install.packages("remotes")
           # remotes::install_github("statwonk/Rcompression")
           
-          tmp <- rawToChar( memDecompress(data_row$DATA[[1]], type='gzip', asChar = T) )
+          ( iconv( memDecompress( unlist(data_row$DATA), type='gzip', asChar=F ) ) )
           
+          iconv( unlist(data_row$DATA[[1]]),  )
+          
+          tmp <- charToRaw( paste0( rawToChar( memDecompress( unlist(data_row$DATA), type='gzip' ), multiple = T ), collapse ='' ) )
+          
+          tmp <- memDecompress(data_row$DATA[[1]], type='gzip', asChar = F)
           
           
           if ( length( tmp ) > 0 ){
-            result <- mstools::decodeLinear( tmp, result)
+            mstools::decodeLinear( tmp, result )
          } 
           
         }
         
       }
-      
-      
       
       # Disconnect from database
       DBI::dbDisconnect(sqmass_db)

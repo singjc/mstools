@@ -1,3 +1,20 @@
+#// **********************************************************************************************
+#//                         XICMasterPlotFcn.R
+#// **********************************************************************************************
+#//
+#// 
+#// **********************************************************************************************
+#// @Maintainer: Justin Sing
+#// @Author: Justin Sing
+
+#' @export
+#' @title Master Plotting function for plotting XIC's
+#' @description This function can be used to draw XIC's by calling getXIC 
+#' 
+#' @param dup_peps A character vector of a peptide sequence
+#' @return A ggplot-grobs table of a XIC
+#' 
+#' @author Justin Sing \url{https://github.com/singjc}
 XICMasterPlotFcn_ <- function( dup_peps, 
                                uni_mod=NULL, 
                                sqMass_files,  in_lib, in_osw, 
@@ -34,7 +51,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
   pep_counter = 0
   for ( pep in dup_peps){
     pep_counter = pep_counter + 1
-    cat( blue('#', pep, ' | (',pep_counter, ' of ', length(dup_peps), ')\n', sep='') )
+    cat( crayon::blue('#', pep, ' | (',pep_counter, ' of ', length(dup_peps), ')\n', sep='') )
     # record_list <- list()
     # record_i dx <- 1
     # for ( file_idx in seq(1,length(sqMass_files),1) ){
@@ -43,7 +60,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
       run_name <- gsub('_osw_chrom[.]sqMass$', '', basename(in_sqMass))
       run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
       
-      cat(blue('@ Run: ', run),'\n', sep='')
+      cat(crayon::blue('@ Run: ', run),'\n', sep='')
       
       cat('  o Working on: ', pep, '\n', sep='')
       plot_chrom_error <- tryCatch({
@@ -61,14 +78,14 @@ XICMasterPlotFcn_ <- function( dup_peps,
         
         
         
-        cat(Verbose(threshold = verbosity), '   ~ Getting peptide library data.. for ', pep, '\n', sep='')
+        cat('   ~ Getting peptide library data.. for ', pep, '\n', sep='')
         # Retrieve library data for specific peptide
         df_lib <- getPepLibData_( in_lib, peptide_id=pep )
         
-        cat(Verbose(threshold = verbosity), '   ~ Getting OpenSwath data.. for ', pep, '\n', sep='')
+        cat('   ~ Getting OpenSwath data.. for ', pep, '\n', sep='')
         # Load OSW Merged df
         osw_df <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
-        if ( dim(osw_df)[1]==0 ){ cat(red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep=''); return(list()) }
+        if ( dim(osw_df)[1]==0 ){ cat(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep=''); return(list()) }
         
         # Get Min and Max RT for alignment of x-axis between the two isoforms
         if ( show_all_pkgrprnk!=T ){
@@ -86,7 +103,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
         
         # Get the charge states of the uni modifications found in OSW results
         current_uni_mod_charges <- as.numeric(gsub('.*_', '', desired_uni_mods))
-        # if ( length(current_uni_mod_charges)==2 & (current_uni_mod_charges[1]!=current_uni_mod_charges[2]) ){ cat(red('The two isoforms for:', underline(pep), 'are of different precursor charge. Skipping...\n'), sep=' '); return(list()) }
+        # if ( length(current_uni_mod_charges)==2 & (current_uni_mod_charges[1]!=current_uni_mod_charges[2]) ){ cat(crayon::red('The two isoforms for:', underline(pep), 'are of different precursor charge. Skipping...\n'), sep=' '); return(list()) }
         
         # Filter df_lib based on only the uni modifications with specified charge state found in OSW results
         df_lib %>%
@@ -99,18 +116,18 @@ XICMasterPlotFcn_ <- function( dup_peps,
           uni_mod <- sort(uni_mod)
           # uni_mod <- uni_mod[1:2]
           if(length(uni_mod)>2 | N_sample==1){
-            cat(Verbose(threshold = verbosity), red('There are more than 2 Modification forms for', underline(pep),'\n Currently cannot handle more than 2 peptidoforms...\nPetidoforms:\n', paste(uni_mod,collapse='\n'),'\n\n', sep=''))
+            cat(crayon::red('There are more than 2 Modification forms for', crayon::underline(pep),'\n Currently cannot handle more than 2 peptidoforms...\nPetidoforms:\n', paste(uni_mod,collapse='\n'),'\n\n', sep=''))
             
-            cat(Verbose(threshold = verbosity), 'Will randomly sample 2 of the ', length(uni_mod), ' peptidoforms to process...\n')
+            cat('Will randomly sample 2 of the ', length(uni_mod), ' peptidoforms to process...\n')
             n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
             n_mod_sites_common <- Mode(n_mod_sites)
-            cat( Verbose(threshold = verbosity), magenta$underline('There is(are) ', bold(length(n_mod_sites_common)), ' group(s) of isoforms...\n'))
+            cat( crayon::magenta$underline('There is(are) ', crayon::bold(length(n_mod_sites_common)), ' group(s) of isoforms...\n'))
             if ( !is.null(idx_draw_these) ){
               uni_isoform_group_list <- list()
               uni_isoform_group_list[[1]] <- uni_mod[idx_draw_these]
             } else {
               if ( length(uni_mod)==1 ){ n_sample=1 } else { n_sample=N_sample }
-              # if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ cat(red('These are not isoforms of each other... Skipping... \n')); return(list()) }
+              # if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ cat(crayon::red('These are not isoforms of each other... Skipping... \n')); return(list()) }
               uni_isoform_group_list <- lapply(n_mod_sites_common, function(isoform_group){ sample(uni_mod[grepl(paste('^',isoform_group,'$',sep=''), n_mod_sites)], n_sample) })
               uni_isoform_group_list[[1]] <- sort(uni_isoform_group_list[[1]])
             }
@@ -120,7 +137,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             n_mod_sites_common <- Mode(n_mod_sites)
             if ( length(uni_mod)==1 ){ mod=uni_mod; max_Int=0; return( drawNakedPeptide_(df_lib=df_lib, mod=mod, pep=pep, in_sqMass=in_sqMass, plotPrecursor=plotPrecursor, plotIntersectingDetecting=plotIntersectingDetecting,  plotIdentifying=plotIdentifying, plotUniqueDetecting=plotUniqueDetecting, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, intersecting_mz=NULL, uni_mod_list=NULL, max_RT=max_RT, min_RT=min_RT, max_Int=max_Int, in_osw=in_osw, smooth_chromatogram=smooth_chromatogram, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, show_all_pkgrprnk=show_all_pkgrprnk, FacetFcnCall=FacetFcnCall, verbosity=verbosity, show_legend = show_legend ) ) } 
             if ( length(uni_mod)==1 ){ n_sample=1 } else { n_sample=2 } # @TODO: Need to figure something out for this and the line above...
-            if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ cat(red('These are not isoforms of each other... Skipping... \n')); return(list()) }
+            if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ cat(crayon::red('These are not isoforms of each other... Skipping... \n')); return(list()) }
             uni_isoform_group_list <- lapply(n_mod_sites_common, function(isoform_group){ sample(uni_mod[grepl(paste('^',isoform_group,'$',sep=''), n_mod_sites)], n_sample) })
             
           }
@@ -143,16 +160,16 @@ XICMasterPlotFcn_ <- function( dup_peps,
           if ( length(Isoform_Target_Charge)>1 ){
             
             if ( is.null(Charge_State) ){
-              cat(Verbose(threshold = verbosity), '* There are ', length(Isoform_Target_Charge), ' charge states.. Will Randomly sample one of the charge states...\n', sep='')
+              cat('* There are ', length(Isoform_Target_Charge), ' charge states.. Will Randomly sample one of the charge states...\n', sep='')
               Isoform_Target_Charge <- sample(Isoform_Target_Charge,1) # @ CHANGEEE
             } else {
               Isoform_Target_Charge <- Charge_State
             }
-            cat(Verbose(threshold = verbosity), '* Will analyze peptidoform with charge state: ', (Isoform_Target_Charge), '\n', sep='')
+            cat('* Will analyze peptidoform with charge state: ', (Isoform_Target_Charge), '\n', sep='')
           }
           
           cat('Peptidoforms of Charge State ', Isoform_Target_Charge, ' to Analyze..\n', paste(uni_mod, collapse = '\n'), '\n', sep='')
-          if ( length(uni_mod)==1 & N_sample!=1 ){ cat(red('There is only 1 form... Skipping...\n')); skipped_bool=TRUE; next }
+          if ( length(uni_mod)==1 & N_sample!=1 ){ cat(crayon::red('There is only 1 form... Skipping...\n')); skipped_bool=TRUE; next }
           
           
           # Display other peak group rank features
@@ -168,7 +185,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             # RT_pkgrps <- as.numeric(names(RT_Table)[RT_Table==2])
             RT_pkgrps <- as.numeric(names(RT_Table))
             if ( length(RT_pkgrps)==0 ){
-              cat(red('WARNING: There were no common RT pkgrps found, will plot all pkgrps...\n'))
+              cat(crayon::red('WARNING: There were no common RT pkgrps found, will plot all pkgrps...\n'))
               RT_pkgrps <- as.numeric(names(RT_Table))
             }
             rm(osw_df_all, osw_df_all_filtered, RT_Table)
@@ -180,7 +197,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
           ###############################
           ## Get Site Determining Ions ##
           ###############################
-          cat(Verbose(threshold = verbosity), paste('   ~ Getting site Determining Ions information for each peptidoform', sep=''))
+          cat(paste('   ~ Getting site Determining Ions information for each peptidoform', sep=''))
           if ( N_sample!=1 ){
             
             uni_mod_list <- getPairSiteDeterminingIonInformation_( uni_mod, len_unmod )
@@ -222,7 +239,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             tic(paste('   ~ Getting Top Transitions that scored a low PEP', sep=''))
             Transition_Scores <- getTransitionScores_( in_osw, run_name, precursor_id='', peptide_id=pep )
             
-            if( is.null(unique(unlist(Transition_Scores$transition_id))) ){ cat(red('These is no Transition ID information... Skipping... \n')); next  }
+            if( is.null(unique(unlist(Transition_Scores$transition_id))) ){ cat(crayon::red('These is no Transition ID information... Skipping... \n')); next  }
             
             top_trans_mod_list <- lapply(uni_mod, function(mod, df_lib, Transition_Scores){
               df_lib %>%
@@ -244,12 +261,12 @@ XICMasterPlotFcn_ <- function( dup_peps,
           } else {
             top_trans_mod_list <- NULL
           }
-          cat(Verbose(threshold = verbosity), '   ~ Starting Plotting Action\n', sep='')
+          cat('   ~ Starting Plotting Action\n', sep='')
           plot_list <- list()
           max_Int <- 0
           uni_mod <- sort(uni_mod)
           for( mod in uni_mod ){ # names(uni_mod_list) ){
-            cat( Verbose(threshold = verbosity), green('   --- Peptidoform: ', mod), '\n', sep='')
+            cat( crayon::green('   --- Peptidoform: ', mod), '\n', sep='')
             ###########################
             ##     PLOT PRECURSOR    ##
             ###########################
@@ -288,13 +305,13 @@ XICMasterPlotFcn_ <- function( dup_peps,
               g <- g$graphic_obj
               
             } else {
-              cat(red('-- Identifying Transitions were not found for: ', underline(mod)), '\n', sep='')
+              cat(crayon::red('-- Identifying Transitions were not found for: ', underline(mod)), '\n', sep='')
             }
             
             ###################################
             ##     ADD OSW RESULTS INFO     ###
             ###################################
-            g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='none', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge, RT_pkgrps=RT_pkgrps, FacetFcnCall=FacetFcnCall, verbosity=verbosity, show_legend = show_legend  )
+            g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='none', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge, RT_pkgrps=RT_pkgrps, show_manual_annotation=show_manual_annotation, FacetFcnCall=FacetFcnCall, verbosity=verbosity, show_legend = show_legend  )
             max_Int <- g$max_Int
             g <- g$graphic_obj
             
@@ -313,10 +330,10 @@ XICMasterPlotFcn_ <- function( dup_peps,
       }, error=function(e){
         if (grepl("reached elapsed time limit|reached CPU time limit", e$message)) {
           # we reached timeout, apply some alternative method or do something else
-          cat(red('Reached CPU Timelimit for ', underline(pep), ' from run: '), underline(run), '\n', sep='')
+          cat(crayon::red('Reached CPU Timelimit for ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
         } else {
           # error not related to timeout
-          cat(red('There was an issue trying to process ', underline(pep), ' from run: '), underline(run), '\n', sep='')
+          cat(crayon::red('There was an issue trying to process ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
           stop(e)
         }
       }
@@ -388,7 +405,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
         } #doPlot END BLOCK
       }, error=function(e){
         # error not related to timeout
-        cat(red('There was an issue trying to draw ', underline(pep)), '\n', sep='')
+        cat(crayon::red('There was an issue trying to draw ', crayon::underline(pep)), '\n', sep='')
       })
     }# length of record plot list chec
   }

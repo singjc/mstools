@@ -42,6 +42,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     FacetFcnCall=NULL,
                     top_trans_mod_list=NULL, 
                     RT_pkgrps=NULL,
+                    show_manual_annotation=NULL,
                     plotIdentifying.Unique=NULL, 
                     plotIdentifying.Shared=NULL, 
                     plotIdentifying.Against=NULL,
@@ -111,10 +112,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##******************************************************************
   if ( 'identifying' %in% transition_type ){
     cat(  '--> Extracting Identifying Transitions...\n')
-      df_lib %>%
-        dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
-        dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-        dplyr::filter( DETECTING==0 ) -> df_lib_filtered
+    df_lib %>%
+      dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
+      dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
+      dplyr::filter( DETECTING==0 ) -> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for identifying transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   }
   
@@ -122,174 +123,227 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##    Extract OpenSwath Information from .osw
   ##******************************************************************
   
-    if ( !is.null( in_osw ) ){
-      cat(  '--> Extracting OpenSwathResults Info...\n')
-      ## Filter library dataframe for matching evaluated modification sequence, precursor charge and for detecting transitions. 
-      df_lib %>%
-        dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
-        dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-        dplyr::filter( DETECTING==1 ) -> df_lib_filtered
-      
-      ## @TODO: Need to make this more robust for other file formats or naming conventions
-      run_name <- gsub('_osw_chrom[.]sqMass$', '', basename(chromatogram_file))
-      ## @TODO: Maybe remove this or leave the whole filename. This is very specific for 3 datasets..
-      run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
-      ## Replace UniMod name with actual modification name
-      ## @TODO: Need to make this more robust for other types of modifications, or for naked peptides.
-      mod_form_rename <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', mod)))))
-      ## Filter for precursor id that matches target charge state
-      df_lib_filtered %>%
-        dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-        select( PRECURSOR_ID ) %>%
-        unique() %>% as.matrix() %>% as.numeric() -> target_charge_precursor
-      ## @TODO: Need to make this more robust for later
-      if( mod==mod_form_rename ){
-        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
-        # # Original OSW Peptide Names 
-        # osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
-        # # Keep only Rows that correspond to the correct Assay
-        # osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName )
-      } else {
-        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
-      }
-      ## Check if openswath dataframe is empty
-      if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe\n' ) ){ 
-        ## If osw_df is empty, return graphic object and max_Int value.
-        graphic_obj <- graphic_obj +
-          ggtitle(  mod ) +
-          labs(subtitle = paste('Run: ', run, 
-                                ' | Precursor: ', df_lib_filtered$PRECURSOR_ID, 
-                                ' | Peptide: ', df_lib_filtered$PEPTIDE_ID, 
-                                ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, sep=''))
-        return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) 
-      }
-      ## Filter OSW dataframe for precursor with target charge.
-      ## @TODO: Maybe this is repetitive and pointless, since we use target_charge_precursor in OSW data extraction in getOSWData_
-      if ( !is.null(Isoform_Target_Charge) ){
-        osw_df %>%
-          dplyr::filter( Charge==Isoform_Target_Charge ) -> osw_df
-      }
-      ## Filter OSW dataframe for Best Peak Feature.
-      if ( !is.null( unlist(osw_df$ipf_pep) ) ){
-        ## Remove rows with NULL value in ipf_pep
-        osw_df %>%
-          dplyr::filter( !is.null(ipf_pep) ) %>%
-          dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
-       ## Get data for the best peak as defined by the feature with the lowest IPF posterior error probability 
-        osw_df %>%
-          dplyr::filter( ipf_pep==min(ipf_pep) ) -> osw_df_filtered #### No longer filter by peak group
-      } else {
-        ## Get data for the best peak as defined by peak_group_rank == 1
-        osw_df %>%
-          dplyr::filter( peak_group_rank==1 ) -> osw_df_filtered #### No longer filter by peak group
-      }
-      ## Extract some useful scores
-      m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
-      ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
-      ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
-      ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]] )
-      ##****************************************************
-      ## Append OSW information to Chromatogram ggplot.
-      ##****************************************************
+  if ( !is.null( in_osw ) ){
+    cat(  '--> Extracting OpenSwathResults Info...\n')
+    ## Filter library dataframe for matching evaluated modification sequence, precursor charge and for detecting transitions. 
+    df_lib %>%
+      dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
+      dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
+      dplyr::filter( DETECTING==1 ) -> df_lib_filtered
+    
+    ## @TODO: Need to make this more robust for other file formats or naming conventions
+    run_name <- gsub('_osw_chrom[.]sqMass$', '', basename(chromatogram_file))
+    ## @TODO: Maybe remove this or leave the whole filename. This is very specific for 3 datasets..
+    run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
+    ## Replace UniMod name with actual modification name
+    ## @TODO: Need to make this more robust for other types of modifications, or for naked peptides.
+    mod_form_rename <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', mod)))))
+    ## Filter for precursor id that matches target charge state
+    df_lib_filtered %>%
+      dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
+      select( PRECURSOR_ID ) %>%
+      unique() %>% as.matrix() %>% as.numeric() -> target_charge_precursor
+    ## @TODO: Need to make this more robust for later
+    if( mod==mod_form_rename ){
+      osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+      # # Original OSW Peptide Names 
+      # osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
+      # # Keep only Rows that correspond to the correct Assay
+      # osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName )
+    } else {
+      osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+    }
+    ## Check if openswath dataframe is empty
+    if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe\n' ) ){ 
+      ## If osw_df is empty, return graphic object and max_Int value.
       graphic_obj <- graphic_obj +
-        geom_vline(xintercept = osw_df_filtered$RT, color='red', size = 1.5 ) +
-        geom_vline(xintercept = osw_df_filtered$leftWidth, color='red', linetype='dotted', size=1 ) +
-        geom_vline(xintercept = osw_df_filtered$rightWidth, color='red', linetype='dotted', size=1 ) + # default size 0.65
         ggtitle(  mod ) +
-        labs(subtitle = paste(
-          'Run: ', run, 
-          ' | Precursor: ', df_lib_filtered$PRECURSOR_ID,
-          ' | Peptide: ', df_lib_filtered$PEPTIDE_ID,
-          'Charge: ', osw_df_filtered$Charge,
-          ' | m/z: ', osw_df_filtered$mz, 
-          ' | RT: ', osw_df_filtered$RT, 
-          '\nlib_RT: ', round(osw_df_filtered$assay_iRT, digits = 4),
-          ' | ms2_m-score: ', m_score,
-          ' | ipf_m-score: ', ipf_m_score,
-          ' | ipf_pep: ', ipf_pep,
-          ' | ms2_pkgrp_rank: ', ms2_pkgrp_rank,
-          sep='')) 
-      ##*************************************
-      ## Plot Other peak rank groups
-      ##*************************************
-      if( !is.null(RT_pkgrps) ){
-        ## Get OSW data for other potential peaks/features
-        osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
-        ## Filter out the top best feature  
-        osw_RT_pkgrps %>%
-          dplyr::filter( RT %in% RT_pkgrps ) %>%
-          dplyr::filter( RT != osw_df_filtered$RT ) %>%
-          dplyr::select( RT, leftWidth, rightWidth, peak_group_rank ) -> osw_RT_pkgrps_filtered
-        if ( dim(osw_RT_pkgrps_filtered)[1]!=0 ){
-          # Define unique set of colors to annotate different peak rank groups
-          jBrewColors <- brewer.pal(n = dim(osw_RT_pkgrps_filtered)[1], name = "Dark2")
-          # Y intcrements
-          y_increment = 0
-          for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
-            point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
-                                          y=((max(max_Int)/ 4 )-y_increment),
-                                          # y=((1000)-y_increment),
-                                          label=paste('Rank:',osw_RT_pkgrps_filtered$peak_group_rank[RT_idx],'\n',osw_RT_pkgrps_filtered$RT[RT_idx],sep=' '))
-            graphic_obj <- graphic_obj +
-              geom_vline(xintercept = osw_RT_pkgrps_filtered$RT[RT_idx], color=jBrewColors[RT_idx], alpha=0.65, size = 1.5 ) +
-              geom_vline(xintercept = osw_RT_pkgrps_filtered$leftWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
-              geom_vline(xintercept = osw_RT_pkgrps_filtered$rightWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
-              # geom_rect( aes(xmin=osw_RT_pkgrps_filtered$leftWidth[RT_idx], xmax=osw_RT_pkgrps_filtered$rightWidth[RT_idx], ymin=0, ymax=Inf), col=jBrewColors[RT_idx], fill=jBrewColors[RT_idx], alpha=0.5) +
-              geom_label(data=point_dataframe, aes(x=RT, y=y,label=label), alpha=0.7, fill=jBrewColors[RT_idx], size=3)
+        labs(subtitle = paste('Run: ', run, 
+                              ' | Precursor: ', df_lib_filtered$PRECURSOR_ID, 
+                              ' | Peptide: ', df_lib_filtered$PEPTIDE_ID, 
+                              ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, sep=''))
+      return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) 
+    }
+    ## Filter OSW dataframe for precursor with target charge.
+    ## @TODO: Maybe this is repetitive and pointless, since we use target_charge_precursor in OSW data extraction in getOSWData_
+    if ( !is.null(Isoform_Target_Charge) ){
+      osw_df %>%
+        dplyr::filter( Charge==Isoform_Target_Charge ) -> osw_df
+    }
+    ## Filter OSW dataframe for Best Peak Feature.
+    if ( !is.null( unlist(osw_df$ipf_pep) ) ){
+      ## Remove rows with NULL value in ipf_pep
+      osw_df %>%
+        dplyr::filter( !is.null(ipf_pep) ) %>%
+        dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
+      ## Get data for the best peak as defined by the feature with the lowest IPF posterior error probability 
+      osw_df %>%
+        dplyr::filter( ipf_pep==min(ipf_pep) ) -> osw_df_filtered #### No longer filter by peak group
+    } else {
+      ## Get data for the best peak as defined by peak_group_rank == 1
+      osw_df %>%
+        dplyr::filter( peak_group_rank==1 ) -> osw_df_filtered #### No longer filter by peak group
+    }
+    ## Extract some useful scores
+    m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
+    ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
+    ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
+    ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]] )
+    ##****************************************************
+    ## Append OSW information to Chromatogram ggplot.
+    ##****************************************************
+    graphic_obj <- graphic_obj +
+      geom_vline(xintercept = osw_df_filtered$RT, color='red', size = 1.5 ) +
+      geom_vline(xintercept = osw_df_filtered$leftWidth, color='red', linetype='dotted', size=1 ) +
+      geom_vline(xintercept = osw_df_filtered$rightWidth, color='red', linetype='dotted', size=1 ) + # default size 0.65
+      ggtitle(  mod ) +
+      labs(subtitle = paste(
+        'Run: ', run, 
+        ' | Precursor: ', df_lib_filtered$PRECURSOR_ID,
+        ' | Peptide: ', df_lib_filtered$PEPTIDE_ID,
+        ' | Charge: ', osw_df_filtered$Charge,
+        ' | m/z: ', osw_df_filtered$mz, 
+        ' | RT(s): ', osw_df_filtered$RT, 
+        ' | RT(m): ', round((osw_df_filtered$RT/60), digits = 2),
+        '\nlib_RT: ', round(osw_df_filtered$assay_iRT, digits = 4),
+        ' | ms2_m-score: ', m_score,
+        ' | ipf_m-score: ', ipf_m_score,
+        ' | ipf_pep: ', ipf_pep,
+        ' | ms2_pkgrp_rank: ', ms2_pkgrp_rank,
+        sep='')) 
+    ##*************************************
+    ## Plot Other peak rank groups
+    ##*************************************
+    if( !is.null(RT_pkgrps) ){
+      ## Get OSW data for other potential peaks/features
+      osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
+      ## Filter out the top best feature  
+      osw_RT_pkgrps %>%
+        dplyr::filter( RT %in% RT_pkgrps ) %>%
+        dplyr::filter( RT != osw_df_filtered$RT ) %>%
+        dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, ipf_pep, m_score ) -> osw_RT_pkgrps_filtered
+      if ( dim(osw_RT_pkgrps_filtered)[1]!=0 ){
+        # Define unique set of colors to annotate different peak rank groups
+        jBrewColors <- brewer.pal(n = dim(osw_RT_pkgrps_filtered)[1], name = "Dark2")
+        # Y intcrements
+        y_increment = 0
+        for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
+          ## get scores and format them                                                                                                             
+          rank <- osw_RT_pkgrps_filtered$peak_group_rank[RT_idx]                                                                      
+          ms2_m_score <- formatC(osw_RT_pkgrps_filtered$ms2_m_score[RT_idx], format = "e", digits = 3)                                
+          ipf_pep <- formatC(osw_RT_pkgrps_filtered$ipf_pep[RT_idx], format = "e", digits = 3)                                                       
+          ipf_m_score <- formatC(osw_RT_pkgrps_filtered$m_score[RT_idx], format = "e", digits = 3) 
+          point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
+                                        RT_m = round((osw_RT_pkgrps_filtered$RT[RT_idx])/60, digits=2),
+                                        # y=((max(max_Int)/ 4 )-y_increment),
+                                        rank = rank, 
+                                        ms2_m_score = ms2_m_score,
+                                        ipf_pep = ipf_pep,
+                                        ipf_m_score = ipf_m_score
+                                        # y=((1000)-y_increment),
+                                        #label=paste('Rank:',osw_RT_pkgrps_filtered$peak_group_rank[RT_idx],'\n',osw_RT_pkgrps_filtered$RT[RT_idx],sep=' ')
+          )
+          graphic_obj <- graphic_obj +
+            geom_vline(xintercept = osw_RT_pkgrps_filtered$RT[RT_idx], color=jBrewColors[RT_idx], alpha=0.65, size = 1.5 ) +
+            geom_vline(xintercept = osw_RT_pkgrps_filtered$leftWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
+            geom_vline(xintercept = osw_RT_pkgrps_filtered$rightWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
+            # geom_rect( aes(xmin=osw_RT_pkgrps_filtered$leftWidth[RT_idx], xmax=osw_RT_pkgrps_filtered$rightWidth[RT_idx], ymin=0, ymax=Inf), col=jBrewColors[RT_idx], fill=jBrewColors[RT_idx], alpha=0.5) +
+            # geom_label(data=point_dataframe, aes(x=RT, y=y,label=label), alpha=0.7, fill=jBrewColors[RT_idx], size=3)
             y_increment = y_increment + 500
+          
+          #****************************************************                                                                                       
+          # Check to see if master annotation table exits                                                                                             
+          #****************************************************                                                                                       
+          if ( !exists("master_annotation_table") ){                                                                                                  
+            master_annotation_table <- point_dataframe                                                                                                
+          } else {                                                                                                                                    
+            master_annotation_table <- rbind(master_annotation_table, point_dataframe)                                                                
           }
         }
-      }
-      ##*************************************
-      ##  Facet Zoom Chromatogram Plot
-      ##*************************************
-      if ( doFacetZoom==TRUE ){
-        ## Check to see if user supplied there own face_zoom function
-        if ( !is.null(FacetFcnCall) ){
-          graphic_obj <- graphic_obj + FacetFcnCall
-        } else {
-          ## If the Max Intensity is greater than 1000, zoom into the chromatogram taking the max Intensity divided by 4
-          if ( max(max_Int) > 1000 ){
-            graphic_obj <- graphic_obj +
-              # facet_zoom(ylim = c(0, (1000) ))
-              facet_zoom(ylim = c(0, (max(max_Int)/ 4 ) ))
-            # facet_zoom(ylim = c(0, (max(max_Int)/ (max(max_Int)-mean(max_Int)) ) ))
-          }
-        }
-      }
-      if ( !is.null(top_trans_mod_list) ){
-        graphic_obj <- graphic_obj +
-          theme(plot.title = element_text(hjust = 0.5), 
-                plot.subtitle = element_text(hjust = 0.5, size = 10),
-                legend.text = element_text(size = 2),
-                legend.key.size = unit(0.5, "cm")) +
-          # theme( panel.background = element_rect( fill='lightblue', color='lightblue', size=0.5, linetype='solid'),
-          #       panel.border = element_rect( fill=NA, color='black', size=0.5, linetype='solid'),
-          #       panel.grid.major = element_line( color='white', size=0.5, linetype='solid'),
-          #       panel.grid.minor = element_line( color='white', size=0.25, linetype='solid') ) 
-          theme_bw()
         
-        if ( show_legend==FALSE ){
-          graphic_obj <- graphic_obj + theme(legend.position="none") 
-        }
+        theme_col <- gridExtra::ttheme_default(core = list(fg_params = list( col = c( jBrewColors )),                                                                                                                                                                                                            
+                                                           bg_params = list( col = NA)),                                                                 
+                                               rowhead = list(bg_params = list(col = NA)),                                                                
+                                               colhead = list(bg_params = list(col = NA))                                                                 
+        )                                                                                                                                                
         
+        #*****************************************************                                                                                           
+        # Make tableGrob object with annotation information                                                                                              
+        # and get height of table                                                                                                                         
+        #*****************************************************                                                                                           
+        annotationGrob <- tableGrob(master_annotation_table, theme = theme_col, row = NULL)                                                             
+        th <- sum(annotationGrob$heights)
+        
+      }
+    }
+    
+    #***************************************
+    # Plot Mannual Annotation Coordinates
+    #***************************************
+    if ( !is.null(show_manual_annotation) ){
+      graphic_obj <- graphic_obj + 
+        geom_rect(data = data.frame(xmin = show_manual_annotation[1],
+                                    xmax = show_manual_annotation[2],
+                                    ymin = -Inf,
+                                    ymax = Inf),
+                  aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+                  fill = "blue", alpha = 0.1)
+      
+    }
+    
+    ##*************************************
+    ##  Facet Zoom Chromatogram Plot
+    ##*************************************
+    if ( doFacetZoom==TRUE ){
+      ## Check to see if user supplied there own face_zoom function
+      if ( !is.null(FacetFcnCall) ){
+        graphic_obj <- graphic_obj + FacetFcnCall
       } else {
-        graphic_obj <- graphic_obj +
-          theme(plot.title = element_text(hjust = 0.5), 
-                plot.subtitle = element_text(hjust = 0.5, size = 10)) +
-          # theme(panel.background = element_rect( fill='#c1e1ec', color='#c1e1ec', size=0.5, linetype='solid'),
-          #       panel.border = element_rect( fill=NA, color='black', size=0.5, linetype='solid'),
-          #       panel.grid.major = element_line( color='white', size=0.5, linetype='solid'),
-          #       panel.grid.minor = element_line( color='white', size=0.25, linetype='solid') ) 
-          # guides( Transition=FALSE ) +
-          theme_bw()
-        if ( show_legend==FALSE ){
-          graphic_obj <- graphic_obj + theme(legend.position="none") 
+        ## If the Max Intensity is greater than 1000, zoom into the chromatogram taking the max Intensity divided by 4
+        if ( max(max_Int) > 1000 ){
+          graphic_obj <- graphic_obj +
+            # facet_zoom(ylim = c(0, (1000) ))
+            facet_zoom(ylim = c(0, (max(max_Int)/ 4 ) ))
+          # facet_zoom(ylim = c(0, (max(max_Int)/ (max(max_Int)-mean(max_Int)) ) ))
         }
+      }
+    }
+    if ( !is.null(top_trans_mod_list) ){
+      graphic_obj <- graphic_obj +
+        theme(plot.title = element_text(hjust = 0.5), 
+              plot.subtitle = element_text(hjust = 0.5, size = 10),
+              legend.text = element_text(size = 2),
+              legend.key.size = unit(0.5, "cm")) +
+        # theme( panel.background = element_rect( fill='lightblue', color='lightblue', size=0.5, linetype='solid'),
+        #       panel.border = element_rect( fill=NA, color='black', size=0.5, linetype='solid'),
+        #       panel.grid.major = element_line( color='white', size=0.5, linetype='solid'),
+        #       panel.grid.minor = element_line( color='white', size=0.25, linetype='solid') ) 
+        theme_bw()
+      
+      if ( show_legend==FALSE ){
+        graphic_obj <- graphic_obj + theme(legend.position="none") 
       }
       
-      return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
-    } 
+    } else {
+      graphic_obj <- graphic_obj +
+        theme(plot.title = element_text(hjust = 0.5), 
+              plot.subtitle = element_text(hjust = 0.5, size = 10)) +
+        # theme(panel.background = element_rect( fill='#c1e1ec', color='#c1e1ec', size=0.5, linetype='solid'),
+        #       panel.border = element_rect( fill=NA, color='black', size=0.5, linetype='solid'),
+        #       panel.grid.major = element_line( color='white', size=0.5, linetype='solid'),
+        #       panel.grid.minor = element_line( color='white', size=0.25, linetype='solid') ) 
+        # guides( Transition=FALSE ) +
+        theme_bw()
+      if ( show_legend==FALSE ){
+        graphic_obj <- graphic_obj + theme(legend.position="none") 
+      }
+    }
+    
+    if ( exists("annotationGrob") ){                                                                                                                    
+      graphic_obj <- ggpubr::as_ggplot( arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = unit.c(unit(1, "null"), th )) )                    
+    }    
+    return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
+  } 
   
   ##******************************************************** 
   ## Get Transition IDs for chromatogram data extraction

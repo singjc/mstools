@@ -32,7 +32,7 @@ getRunID_ <- function( oswfile, run_name ){
   stmt = paste("SELECT * FROM RUN WHERE RUN.FILENAME LIKE '%", run_name, "%'",sep='')
   
   # Query Databasse
-  df <- dplyr::collect( dplyr::tbl(osw_db, dplyr::sql(stmt)) )
+  df <- dplyr::collect( dbplyr::tbl(osw_db, dbplyr::sql(stmt)) )
   # Disconnect from database
   DBI::dbDisconnect(osw_db)
   

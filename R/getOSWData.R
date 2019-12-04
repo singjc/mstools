@@ -47,16 +47,17 @@ getOSWData_ <- function ( oswfile,
   
   # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
   # run_name <- '/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_013_SW_0.mzXML'
-  
+ # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
+ # run_name <- "/home/singjust/projects/def-hroest/data/christian_doerig_dataset/U_pools_mzML/sw/lgillet_L160915_024-Manchester_dirty_phospho_-_Pool_U12_-_SW.mzML.gz"
   # Load Requried Libraries
-  library(dplyr)
-  library(dbplyr)
+  # library(dplyr)
+  # library(dbplyr)
   
   # Connect to database
   osw_db <- DBI::dbConnect( RSQLite::SQLite(), oswfile )
   
   # Get RUN ID from database
-  if (run_name != ''){
+  if ( run_name != '' ){
     run_id_df = getRunID_(oswfile, run_name)
     run_id_query = sprintf("INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID AND FEATURE.RUN_ID=(%s)", run_id_df$ID)
   } else {
@@ -91,7 +92,7 @@ getOSWData_ <- function ( oswfile,
     mod_residue_position_query = ''
   }
   if (ipf_score == TRUE && ms2_score == TRUE){
-    select_as_stmt = sprintf("SELECT RUN.ID AS id_run,
+    select_as_stmt = sprintf("SELECT FEATURE.ID AS feature_id,
        PEPTIDE_IPF.ID AS id_ipf_peptide,
        PEPTIDE.ID AS id_peptide,
        PRECURSOR.ID AS id_precursor,
@@ -134,7 +135,7 @@ getOSWData_ <- function ( oswfile,
       pk_grp_rnk_fil_query = 'LEFT JOIN PEPTIDE AS PEPTIDE_IPF ON SCORE_IPF.PEPTIDE_ID = PEPTIDE_IPF.ID'
     }
   } else if ((ipf_score == FALSE && ms2_score == TRUE)){
-    select_as_stmt = sprintf("SELECT RUN.ID AS id_run,
+    select_as_stmt = sprintf("SELECT FEATURE.ID AS feature_id,
        PEPTIDE.ID AS id_peptide,
        PRECURSOR.ID AS id_precursor,
        PEPTIDE.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
@@ -172,9 +173,9 @@ getOSWData_ <- function ( oswfile,
     include_ipf_score = ''
     
   } else {
-    print( 'There was an error with the ms2_score or ipf_score argument!!!' )
-    print(ms2_score)
-    print(ipf_score)
+    cat( 'There was an error with the ms2_score or ipf_score argument!!!\n' )
+    cat( sprintf("ms2_score: %s\n", ms2_score) )
+    cat( sprintf("ipf_score: %s\n", ipf_score) )
   }
   
   if (pep_list != ''){
@@ -220,7 +221,7 @@ ORDER BY transition_group_id,
 ", select_as_stmt, decoy_filter_query, peptide_query, precursor_query, run_id_query, include_ipf_score, pk_grp_rnk_fil_query, filter_multiple_peps, qval_filter_query, mod_peptide_query, mod_residue_position_query)
   
   # Query Databasse
-  df_osw <- collect( tbl(osw_db, sql(stmt)) )
+  df_osw <- dplyr::collect( dplyr::tbl(osw_db, dbplyr::sql(stmt)) )
   
   cat("Dimensions of OSW Results file: ", dim(df_osw), "\n")
   
