@@ -4,12 +4,14 @@
 \alias{pairwise_comparison}
 \title{Pair-Wise Comparison}
 \usage{
-pairwise_comparison(x, out = "delta")
+pairwise_comparison(x, out = "delta", P_overlap_threshold = 0.2)
 }
 \arguments{
 \item{x}{a vector or list containing two comparisons}
 
-\item{out}{a character vector specifying method to perform}
+\item{out}{a character vector specifying method to perform. Options: ('delta', 'strcat', 'isequal', 'samePeak', 'percentOverlap')}
+
+\item{P_overlap_threshold}{a numeric value specifying the curret off to use for considering a peak overlap as bein the same or not}
 }
 \value{
 A value for comparison

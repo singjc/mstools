@@ -12,12 +12,13 @@
 #' @description This function can be used to perform a pairwise comparison
 #' 
 #' @param x a vector or list containing two comparisons 
-#' @param out a character vector specifying method to perform
+#' @param out a character vector specifying method to perform. Options: ('delta', 'strcat', 'isequal', 'samePeak', 'percentOverlap')
+#' @param P_overlap_threshold a numeric value specifying the curret off to use for considering a peak overlap as bein the same or not
 #' @return A value for comparison
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-pairwise_comparison <- function( x, out='delta' ){
+pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
   DEBUG=FALSE
   if ( length(x) >2 ){
     cat(red$bold$underline('Warning! There is more than 2 values, will only use first 2!\n'))
@@ -34,7 +35,7 @@ pairwise_comparison <- function( x, out='delta' ){
     # ifelse(x$rightWidth[1] >= x$leftWidth[2] & x$rightWidth[2] >= x$leftWidth[1], 'same', 'diff')
     
     ## Check if any of the entries are NA, if so return single
-    if ( any(is.na(x$rightWidth)) | any(is.na(x$leftWidth))){
+    if ( any(is.na(x$rightWidth)) | any(is.na(x$leftWidth)) | length(x$leftWidth)==1 | length(x$rightWidth)==1  ){
       return('N/A')
     }
      
@@ -68,7 +69,7 @@ pairwise_comparison <- function( x, out='delta' ){
       }
     }
     
-    return( ifelse(P_overlap > 0.7, 'same', 'diff') )
+    return( ifelse(P_overlap > P_overlap_threshold, 'same', 'diff') )
     
   } else if (out=='percentOverlap'){
     if ( DEBUG ){
@@ -84,7 +85,7 @@ pairwise_comparison <- function( x, out='delta' ){
     # cat( sprintf( 'Region1-right(%s) >= Region2-left(%s) & Region2-right(%s) >= Region1-left(%s)\n' , x$rightWidth[1], x$leftWidth[2], x$rightWidth[2], x$leftWidth[1] )     )
     
     ## Check if any of the entries are NA, if so return single
-    if ( any(is.na(x$rightWidth)) | any(is.na(x$leftWidth)) ){
+    if ( any(is.na(x$rightWidth)) | any(is.na(x$leftWidth)) | length(x$leftWidth)==1 | length(x$rightWidth)==1 ){
       return(-1)
     }
     

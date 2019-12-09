@@ -31,6 +31,11 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     ## Synth_Phso
     in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
     in_sqMass <-  "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold//Dilution_1_0/chludwig_K150309_013_SW_0_osw_chrom.sqMass" 
+  
+    ## Christian sgolay 24
+    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
+    in_sqMass <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/sqMass/lgillet_L160915_002-Manchester_dirty_phospho_-_Pool_U1_-_SW.mzML.gz_osw_chrom.sqMass"
+    
   }
   
   list_comparisons <- lapply(sqMass_files, function( in_sqMass ){
@@ -39,9 +44,9 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     
     cat( 'Reading in results for: ', crayon::blue$bold$underline(run_name), '\n', sep='' )
     # Extract OpenSwath REsults for Specfific run
-    osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=T, pep_list='', ... )
+    osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', ... )
     
-    # osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=T, pep_list='', decoy_filter = T, ipf_score = T )
+    # osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', decoy_filter = T, ipf_score = T )
     
     # Original OSW Peptide Names
     osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
@@ -88,7 +93,7 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
       
       osw_df_fil2 %>%
         dplyr::select( id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, ipf_FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
-        dplyr::filter( Sequence=="ADEICIAGSPLTPR")
+        dplyr::filter( Sequence=="EDTEEISCR")
     }
     
     if ( report_top_single_result==T ){
@@ -98,8 +103,10 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
         dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName to further trim data
         dplyr::filter( !!as.name(which_m_score)==min(!!as.name(which_m_score)) ) %>% # Keep result of multiple form entries that passed intial m_score filtering. Keep results with the lowest m_score
         dplyr::ungroup() %>%
-        dplyr::add_count( Sequence_Group_id )  %>% # Add column with counts for entries for each peptidoform. There might be cases where a peptidoform has to peak group ranks that have the same m_score (i.e. 0)
-        dplyr::filter( ifelse( n>1, ifelse(peak_group_rank==1, T, F), T) ) -> osw_df_fil2 # if the former ends up being true, only keep the results with peakgroup rank 1 annotation
+        dplyr::add_count( Sequence_Group_id ) -> osw_df_fil2  # Add column with counts for entries for each peptidoform. There might be cases where a peptidoform has two peak group ranks that have the same m_score (i.e. 0)
+      osw_df_fil2 %>% 
+        dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName for a second pass of trimming the data
+        dplyr::filter( ifelse( n>1, ifelse(peak_group_rank==min(peak_group_rank), T, F), T) ) -> osw_df_fil2 # if the former ends up being true, only keep the results with peakgroup rank 1 annotation
       
       #********************#
       #***     DEBUG    ***#
@@ -109,7 +116,8 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
         
         osw_df_fil2 %>%
           dplyr::select( id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, ipf_FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
-          dplyr::filter( Sequence=="ADEICIAGSPLTPR")
+          dplyr::filter( Sequence=="EDTEEISCR")
+        
       }
       
     }

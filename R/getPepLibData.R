@@ -52,7 +52,7 @@ INNER JOIN PRECURSOR_PEPTIDE_MAPPING ON TRANSITION_PRECURSOR_MAPPING.PRECURSOR_I
 %s
 INNER JOIN PRECURSOR ON PRECURSOR.ID=PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID", peptide_query)
   # Query Databasse
-  df_lib <- dplyr::collect( dplyr::tbl(lib_db, dplyr::sql(lib_query)) )
+  df_lib <- dplyr::collect( dplyr::tbl(lib_db, dbplyr::sql(lib_query)) )
   # Disconnect from database
   DBI::dbDisconnect(lib_db)
   return( df_lib )

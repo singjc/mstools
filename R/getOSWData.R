@@ -49,6 +49,9 @@ getOSWData_ <- function ( oswfile,
   # run_name <- '/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_013_SW_0.mzXML'
  # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
  # run_name <- "/home/singjust/projects/def-hroest/data/christian_doerig_dataset/U_pools_mzML/sw/lgillet_L160915_024-Manchester_dirty_phospho_-_Pool_U12_-_SW.mzML.gz"
+  #  run_name = "lgillet_L160915_028-Manchester_dirty_phospho_-_Pool_U14_-_SW.mzML.gz"
+  oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/M_pools_re-run/pyprophet_parametric_no_precursor/merged_runs_group_id_MS1MS2_intergration.osw"
+  run_name <- "lgillet_L160918_002-Manchester_dirty_phospho_-_Pool_M1_-_SW.mzML.gz"
   # Load Requried Libraries
   # library(dplyr)
   # library(dbplyr)
@@ -75,9 +78,9 @@ getOSWData_ <- function ( oswfile,
   }
   if (mod_peptide_id!=''){
     if( ipf_score == TRUE){
-      mod_peptide_query = sprintf("WHERE PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s') OR PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s')", mod_peptide_id[0], mod_peptide_id[1]) # PEPTIDE.MODIFIED_SEQUENCE use to correspond with PEPTIDE_IPF.MODIFIED_SEQUENCE. @ Justin
+      mod_peptide_query = sprintf("WHERE PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s') OR PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s')", mod_peptide_id[1], mod_peptide_id[2]) # PEPTIDE.MODIFIED_SEQUENCE use to correspond with PEPTIDE_IPF.MODIFIED_SEQUENCE. @ Justin
     } else {
-      mod_peptide_query = sprintf("WHERE PEPTIDE.MODIFIED_SEQUENCE=('%s') OR PEPTIDE.MODIFIED_SEQUENCE=('%s')", mod_peptide_id[0], mod_peptide_id[1])
+      mod_peptide_query = sprintf("WHERE PEPTIDE.MODIFIED_SEQUENCE=('%s') OR PEPTIDE.MODIFIED_SEQUENCE=('%s')", mod_peptide_id[1], mod_peptide_id[2])
     }
   } else {
     mod_peptide_query = ''
@@ -219,6 +222,8 @@ LEFT JOIN SCORE_MS2 ON SCORE_MS2.FEATURE_ID = FEATURE.ID
 ORDER BY transition_group_id,
          peak_group_rank
 ", select_as_stmt, decoy_filter_query, peptide_query, precursor_query, run_id_query, include_ipf_score, pk_grp_rnk_fil_query, filter_multiple_peps, qval_filter_query, mod_peptide_query, mod_residue_position_query)
+  
+  # cat(stmt)
   
   # Query Databasse
   df_osw <- dplyr::collect( dplyr::tbl(osw_db, dbplyr::sql(stmt)) )

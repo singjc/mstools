@@ -51,7 +51,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
       sql_query <- paste(sql_query, ')', sep='')
       
       # Query Databasse
-      chrom_index_df <- dplyr::collect( dplyr::tbl(sqmass_db, dplyr::sql(sql_query)) )
+      chrom_index_df <- dplyr::collect( dplyr::tbl(sqmass_db, dbplyr::sql(sql_query)) )
       
       # @TODO: If chrom_index_df is empty, throw an error
       

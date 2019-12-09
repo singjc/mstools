@@ -10,9 +10,9 @@ getXIC(graphic_obj = ggplot2::ggplot(), mod, df_lib, chromatogram_file,
   max_Int = NULL, smooth_chromatogram = list(p = 4, n = 9),
   doFacetZoom = FALSE, FacetFcnCall = NULL,
   top_trans_mod_list = NULL, RT_pkgrps = NULL,
-  plotIdentifying.Unique = NULL, plotIdentifying.Shared = NULL,
-  plotIdentifying.Against = NULL, show_n_transitions = NULL,
-  show_legend = T, verbosity = 0)
+  show_manual_annotation = NULL, plotIdentifying.Unique = NULL,
+  plotIdentifying.Shared = NULL, plotIdentifying.Against = NULL,
+  show_n_transitions = NULL, show_legend = T, verbosity = 0)
 }
 \arguments{
 \item{graphic_obj}{A ggplot() graphics handle. Initialize with g <- ggplot() to create an empty ggplot handle}
