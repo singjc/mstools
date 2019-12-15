@@ -4,11 +4,21 @@
 \alias{getOSWData_}
 \title{Extract data from OpenSwathWorkflow .osw results file}
 \usage{
-getOSWData_(oswfile, run_name = "", precursor_id = "",
-  peptide_id = "", mod_peptide_id = "", mod_residue_position = "",
-  peak_group_rank_filter = FALSE, pep_list = "", mscore_filter = "",
-  ipf_filter = "", ipf_score = FALSE, ms2_score = TRUE,
-  decoy_filter = TRUE)
+getOSWData_(
+  oswfile,
+  run_name = "",
+  precursor_id = "",
+  peptide_id = "",
+  mod_peptide_id = "",
+  mod_residue_position = "",
+  peak_group_rank_filter = FALSE,
+  pep_list = "",
+  mscore_filter = "",
+  ipf_filter = "",
+  ipf_score = FALSE,
+  ms2_score = TRUE,
+  decoy_filter = TRUE
+)
 }
 \arguments{
 \item{oswfile}{A character vector of the absolute path and filename of the osw results file. (Must be .osw format)}

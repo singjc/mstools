@@ -44,17 +44,19 @@ getOSWData_ <- function ( oswfile,
                           ms2_score=TRUE,
                           decoy_filter=TRUE){
   
-  
-  # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
-  # run_name <- '/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_013_SW_0.mzXML'
- # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
- # run_name <- "/home/singjust/projects/def-hroest/data/christian_doerig_dataset/U_pools_mzML/sw/lgillet_L160915_024-Manchester_dirty_phospho_-_Pool_U12_-_SW.mzML.gz"
-  #  run_name = "lgillet_L160915_028-Manchester_dirty_phospho_-_Pool_U14_-_SW.mzML.gz"
-  oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/M_pools_re-run/pyprophet_parametric_no_precursor/merged_runs_group_id_MS1MS2_intergration.osw"
-  run_name <- "lgillet_L160918_002-Manchester_dirty_phospho_-_Pool_M1_-_SW.mzML.gz"
-  # Load Requried Libraries
-  # library(dplyr)
-  # library(dbplyr)
+  DEBUG=F
+  if ( DEBUG ) {
+    # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
+    # run_name <- '/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_013_SW_0.mzXML'
+    # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
+    # run_name <- "/home/singjust/projects/def-hroest/data/christian_doerig_dataset/U_pools_mzML/sw/lgillet_L160915_024-Manchester_dirty_phospho_-_Pool_U12_-_SW.mzML.gz"
+    #  run_name = "lgillet_L160915_028-Manchester_dirty_phospho_-_Pool_U14_-_SW.mzML.gz"
+    # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/M_pools_re-run/pyprophet_parametric_no_precursor/merged_runs_group_id_MS1MS2_intergration.osw"
+    # run_name <- "lgillet_L160918_002-Manchester_dirty_phospho_-_Pool_M1_-_SW.mzML.gz"
+    # Load Requried Libraries
+    # library(dplyr)
+    # library(dbplyr)
+  }
   
   # Connect to database
   osw_db <- DBI::dbConnect( RSQLite::SQLite(), oswfile )

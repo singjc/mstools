@@ -29,9 +29,10 @@ getModificationPosition_ <- function( mod_seq, character_index=F ){
   
   if (character_index==F){
     modification_labels <- regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
-    mod_seq_Phospho_only <- gsub( paste(gsub('\\)','\\\\)',gsub('\\(','\\\\(',modification_labels[!(grepl('\\(UniMod:21\\)|\\(Phospho\\)', modification_labels))])), collapse = '|'), '', mod_seq )
+    naked_peptide <- gsub( paste(gsub('\\)','\\\\)',gsub('\\(','\\\\(',modification_labels)), collapse = '|'), '', mod_seq )
     
     modification_index_list <- list()
+    modification_index_list$naked_peptide_length <- nchar(naked_peptide)
     for ( mod in unique(modification_labels) ) {
       
       ## Remove other modifications from the sequence that are not being accessed to get a more accurate position index
@@ -49,7 +50,7 @@ getModificationPosition_ <- function( mod_seq, character_index=F ){
       ## Get actual amino acid index
       pos_mod <- as.numeric(pos_mod[[1]]) - 1
       ## Store position in list
-      modification_index_list[[mod]] <- pos_mod
+      modification_index_list[[paste0('modification_',mod)]] <- pos_mod
     }
     return( modification_index_list )    
     

@@ -4,16 +4,35 @@
 \alias{XICMasterPlotFcn_}
 \title{Master Plotting function for plotting XIC's}
 \usage{
-XICMasterPlotFcn_(dup_peps, uni_mod = NULL, sqMass_files, in_lib, in_osw,
-  plotPrecursor = T, plotIntersectingDetecting = T,
-  plotUniqueDetecting = T, plotIdentifying = T,
-  plotIdentifying.Unique = T, plotIdentifying.Shared = F,
-  plotIdentifying.Against = F, smooth_chromatogram = T,
-  doFacetZoom = T, FacetFcnCall = NULL, doPlot = T,
-  RT_padding = 100, Charge_State = NULL, N_sample = 2,
-  idx_draw_these = NULL, store_plots_subdir = "/Results/",
-  printPlot = F, use_top_trans_pep = F, show_n_transitions = NULL,
-  show_all_pkgrprnk = T, show_legend = T, verbosity = 0)
+XICMasterPlotFcn_(
+  dup_peps,
+  uni_mod = NULL,
+  sqMass_files,
+  in_lib,
+  in_osw,
+  plotPrecursor = T,
+  plotIntersectingDetecting = T,
+  plotUniqueDetecting = T,
+  plotIdentifying = T,
+  plotIdentifying.Unique = T,
+  plotIdentifying.Shared = F,
+  plotIdentifying.Against = F,
+  smooth_chromatogram = T,
+  doFacetZoom = T,
+  FacetFcnCall = NULL,
+  doPlot = T,
+  RT_padding = 100,
+  Charge_State = NULL,
+  N_sample = 2,
+  idx_draw_these = NULL,
+  store_plots_subdir = "/Results/",
+  printPlot = F,
+  use_top_trans_pep = F,
+  show_n_transitions = NULL,
+  show_all_pkgrprnk = T,
+  show_legend = T,
+  verbosity = 0
+)
 }
 \arguments{
 \item{dup_peps}{A character vector of a peptide sequence}

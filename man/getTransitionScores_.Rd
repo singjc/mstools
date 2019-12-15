@@ -4,8 +4,7 @@
 \alias{getTransitionScores_}
 \title{Extract Transition Information from .osw results file}
 \usage{
-getTransitionScores_(oswfile, run_name, precursor_id = "",
-  peptide_id = "")
+getTransitionScores_(oswfile, run_name, precursor_id = "", peptide_id = "")
 }
 \arguments{
 \item{oswfile}{A character vector of the absolute path and filename of the osw results file. (Must be .osw format)}
