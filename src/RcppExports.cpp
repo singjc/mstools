@@ -17,33 +17,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// encodePic
-void encodePic(const std::vector<double>& data, std::vector<unsigned char>& result);
-RcppExport SEXP _mstools_encodePic(SEXP dataSEXP, SEXP resultSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::vector<double>& >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< std::vector<unsigned char>& >::type result(resultSEXP);
-    encodePic(data, result);
-    return R_NilValue;
-END_RCPP
-}
-// decodeLinear
-void decodeLinear(const std::vector<unsigned char>& data, std::vector<double>& result);
-RcppExport SEXP _mstools_decodeLinear(SEXP dataSEXP, SEXP resultSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const std::vector<unsigned char>& >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< std::vector<double>& >::type result(resultSEXP);
-    decodeLinear(data, result);
-    return R_NilValue;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mstools_timesTwo", (DL_FUNC) &_mstools_timesTwo, 1},
-    {"_mstools_encodePic", (DL_FUNC) &_mstools_encodePic, 2},
-    {"_mstools_decodeLinear", (DL_FUNC) &_mstools_decodeLinear, 2},
     {NULL, NULL, 0}
 };
 

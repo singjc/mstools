@@ -6,13 +6,3 @@ timesTwo <- function(x) {
     .Call(`_mstools_timesTwo`, x)
 }
 
-#' @export
-encodePic <- function(data, result) {
-    invisible(.Call(`_mstools_encodePic`, data, result))
-}
-
-#' @export
-decodeLinear <- function(data, result) {
-    invisible(.Call(`_mstools_decodeLinear`, data, result))
-}
-

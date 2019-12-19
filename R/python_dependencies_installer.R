@@ -29,12 +29,52 @@ install_python_dependencies <- function(method = "auto", conda = "auto") {
   }
 }
 
+python_dummy_modules <- function() {
+  # Load the module and create dummy objects from it, all of which are NULL
+  pymsnumpress <- reticulate::import( "PyMSNumpress", delay_load = FALSE, convert = FALSE )
+  for (obj in c("decodeLinear", "decodeSlof") ) {
+    assign(obj, NULL)
+  }
+  # Clean up
+  rm(pymsnumpress)
+  
+  # Load the module and create dummy objects from it, all of which are NULL
+  pyzlib <- reticulate::import( "zlib", delay_load = FALSE, convert = FALSE )
+  for (obj in c("compress","decompress")) {
+    assign(obj, NULL)
+  }
+  # Clean up
+  rm(pyzlib)
+  
+  # Load the module and create dummy objects from it, all of which are NULL
+  pybuiltins <- reticulate::import_builtins( convert = TRUE )
+  for (obj in c("bytes","bytearray")) {
+    assign(obj, NULL)
+  }
+  # Clean up
+  rm(pybuiltins)
+}
 .onload <- function( libname, pkgname ){
   pymsnumpress <- NULL
   pyzlib <- NULL
   pybuiltins <- NULL
   ## Use super assignment to update global reference to import
-  pymsnumpress <- reticulate::import( "PyMSNumpress", delay_load = TRUE, convert = FALSE )
-  pyzlib <- reticulate::import("zlib", delay_load = TRUE, convert = FALSE )
-  pybuiltins <- reticulate::import_builtins( convert = FALSE )
+  #' @export
+  pymsnumpress <<- reticulate::import( "PyMSNumpress", delay_load = TRUE, convert = FALSE )
+  #' @export
+  pyzlib <<- reticulate::import("zlib", delay_load = TRUE, convert = FALSE )
+  #' @export
+  pybuiltins <<- reticulate::import_builtins( convert = TRUE )
+  
+  # assignInMyNamespace(...) is meant for namespace manipulation
+  # for (obj in c("decodeLinear", "decodeSlof") ) {
+  #   assignInMyNamespace(obj, pymsnumpress[[obj]])
+  # }
+  # for (obj in c("compress","decompress")) {
+  #   assignInMyNamespace(obj, pyzlib[[obj]])
+  # }
+  # for (obj in c("compress","decompress")) {
+  #   assignInMyNamespace(obj, pybuiltins[[obj]])
+  # }
+  
 }
