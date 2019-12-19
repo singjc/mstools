@@ -414,6 +414,8 @@ void decodeLinear(
   result.resize(decodedLength);
   std::cout << "Result size3: " << result.size() << '\n';
   std::cout << "This is Result: " << &result << '\n';
+  std::cout << "This is type Result: " << typeid(&result).name() << "\n";
+  
 }
 
 /////////////////////////////////////////////////////////////

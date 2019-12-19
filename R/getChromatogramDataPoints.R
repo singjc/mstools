@@ -33,94 +33,99 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
       filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/M_pools_re-run//lgillet_L160920_012-Manchester_dirty_phospho_-_Pool_M6_-_SW/lgillet_L160920_012-Manchester_dirty_phospho_-_Pool_M6_-_SW.mzML.gz_osw_chrom.sqMass"
       frag_ids <- list()
       frag_ids[[1]] <- c("7788", "7789", "7790", "7791", "7792", "7793")
-      
-      
-      # chrom <- getChromatogramsbyIndice_( filename, frag_ids )
-      
-      # Connect to database
-      sqmass_db <- DBI::dbConnect( RSQLite::SQLite(), filename )
-      
-      # Query statement
-      sql_query <- "SELECT * FROM CHROMATOGRAM WHERE NATIVE_ID in ("
-      for (precursor in frag_ids){
-        for (current_id in precursor){
-          sql_query <- paste( sql_query, "'", current_id, "', ", sep='')
-        }
+    }
+    
+    ##*********************************************
+    ##      Python Setup
+    ##*********************************************
+    mstools:::find_python()
+    mstools:::install_python_dependencies()
+    mstools:::.onload()
+    
+    ##********************************************
+    ##    Do Actual Int and RT Extraction 
+    ##********************************************
+    
+    # Connect to database
+    sqmass_db <- DBI::dbConnect( RSQLite::SQLite(), filename )
+    
+    # Query statement
+    sql_query <- "SELECT * FROM CHROMATOGRAM WHERE NATIVE_ID in ("
+    for (precursor in frag_ids){
+      for (current_id in precursor){
+        sql_query <- paste( sql_query, "'", current_id, "', ", sep='')
       }
-      sql_query <- substr(sql_query,1,nchar(sql_query)-2)
-      sql_query <- paste(sql_query, ')', sep='')
-      
-      # Query Databasse
-      chrom_index_df <- dplyr::collect( dplyr::tbl(sqmass_db, dbplyr::sql(sql_query)) )
-      
-      # @TODO: If chrom_index_df is empty, throw an error
-      
-      
-      "
+    }
+    sql_query <- substr(sql_query,1,nchar(sql_query)-2)
+    sql_query <- paste(sql_query, ')', sep='')
+    
+    # Query Databasse
+    chrom_index_df <- dplyr::collect( dplyr::tbl(sqmass_db, dbplyr::sql(sql_query)) )
+    colnames(chrom_index_df) <- c('CHROMATOGRAM_ID', 'RUN_ID', 'FRAGMENT_ID')
+    
+    # @TODO: If chrom_index_df is empty, throw an error
+    
+    "
         Get data from multiple chromatograms chromatogram
         - compression is one of 0 = no, 1 = zlib, 2 = np-linear, 3 = np-slof, 4 = np-pic, 5 = np-linear + zlib, 6 = np-slof + zlib, 7 = np-pic + zlib
         - data_type is one of 0 = mz, 1 = int, 2 = rt
         - data contains the raw (blob) data for a single data array
     "
-      
-      hexToText <- function(msg){
-        hex <- sapply(seq(1, nchar(as.character(msg)), by=2), 
-                      function(x) substr(msg, x, x+1))
-        hex <- subset(hex, !hex == "00")
-        gsub('[^[:print:]]+', '', rawToChar(as.raw(strtoi(hex, 16L))))
-      }
-      
-      stmt <- "SELECT CHROMATOGRAM_ID, COMPRESSION, DATA_TYPE, DATA FROM DATA WHERE CHROMATOGRAM_ID IN ("
-      for ( myid in as.matrix(chrom_index_df[,1]) ){
-        stmt <- paste( stmt,  myid, ",", sep='' )
-      }
-      stmt <- substr(stmt,1,nchar(stmt)-1)
-      stmt <- paste(stmt, ')', sep='')
-      
-      data <- dplyr::collect( dplyr::tbl(sqmass_db, dplyr::sql(stmt)) )
-      
-      rt_array <- list()
-      intensity_array <- list()
-      
-      for ( row in seq(1, nrow(data)) ){
-        row = 1
-        result <- numeric()
-        
-        
-        data_row <- data[ row, ]
-        
-        if ( data_row$COMPRESSION==5 ){
-          # install.packages("remotes")
-          # remotes::install_github("statwonk/Rcompression")
-          
-          ( iconv( memDecompress( unlist(data_row$DATA), type='gzip', asChar=F ) ) )
-          
-          iconv( unlist(data_row$DATA[[1]]),  )
-          
-          tmp <- charToRaw( paste0( rawToChar( memDecompress( unlist(data_row$DATA), type='gzip' ), multiple = T ), collapse ='' ) )
-          
-          tmp <- memDecompress(data_row$DATA[[1]], type='gzip', asChar = F)
-          
-          
-          if ( length( tmp ) > 0 ){
-            mstools::decodeLinear( tmp, result )
-         } 
-          
-        }
-        
-      }
-      
-      # Disconnect from database
-      DBI::dbDisconnect(sqmass_db)
-      
-      
-      return(chrom)
-    } else {
-      cat( crayon::red$bold$underline(fileType, ' FileType is not supported yet, coming soon!!\n'), sep='')
+    stmt <- "SELECT CHROMATOGRAM_ID, COMPRESSION, DATA_TYPE, DATA FROM DATA WHERE CHROMATOGRAM_ID IN ("
+    for ( myid in as.matrix(chrom_index_df[,1]) ){
+      stmt <- paste( stmt,  myid, ",", sep='' )
     }
+    stmt <- substr(stmt,1,nchar(stmt)-1)
+    stmt <- paste(stmt, ')', sep='')
+    
+    data <- dplyr::collect( dplyr::tbl(sqmass_db, dplyr::sql(stmt)) )
+    
+    data <- merge(data, chrom_index_df, by="CHROMATOGRAM_ID")
+    
+    chrom <- list()
+    for ( row in seq(1, nrow(data)) ){
+      # row = 2
+      ## Initialize an empty python list to store results in
+      result <- reticulate::r_to_py( list() )
+      ## Subset data for current row of data
+      data_row <- data[ row, ]
+      ## Check which method current row data was compressed with
+      if ( data_row$COMPRESSION==5 ){
+        pymsnumpress$decodeLinear(data = pybuiltins$bytearray( pyzlib$decompress( pybuiltins$bytes( reticulate::r_to_py( data_row$DATA[[1]] )))), 
+                                  result = result )
+        result <- reticulate::py_to_r( result )
+      }
+      if ( data_row$COMPRESSION==6 ){
+        pymsnumpress$decodeSlof(data = pybuiltins$bytearray( pyzlib$decompress( pybuiltins$bytes( reticulate::r_to_py( data_row$DATA[[1]] )))), 
+                                result = result )
+        result <- reticulate::py_to_r( result )
+      }
+      
+      if ( length(result) == 0 ){
+        result = numeric()
+      }
+      if ( data_row$DATA_TYPE == 1 ){
+        chrom[[ data_row$FRAGMENT_ID ]]$Int = result
+      } else if ( data_row$DATA_TYPE == 2){
+        chrom[[ data_row$FRAGMENT_ID ]]$RT = result
+      } else {
+        message("Only expected RT or Intensity data for chromatogram")
+      }
+    }
+    
+    # Disconnect from database
+    DBI::dbDisconnect(sqmass_db)
+    
+    return(chrom)
+    # } else {
+    # cat( crayon::red$bold$underline(fileType, ' FileType is not supported yet, coming soon!!\n'), sep='')
+    # }
     
     
   } else if ( tolower(fileType)=='mzml' ){
+    if ( F ){
+      filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR/inst/extdata/mzml/chludwig_K150309_013_SW_0.chrom.mzML"
+    }
     # Read in an mzML chromatogram --------------------------------------------
     cat('Reading in chromatogram of ', crayon::blue$bold$underline('mzML type.\n', sep=''))
     # Create an mzR object that stores all header information, and use ProteoWizard api to access data from MzML file
