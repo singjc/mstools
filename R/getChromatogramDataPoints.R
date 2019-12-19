@@ -27,13 +27,12 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
     # Read in an sqMass Chromatogram ------------------------------------------
     
     if ( F ){
-      cat('Reading in chromatogram of ', crayon::blue$bold$underline('sqmass type.\n', sep=''))
-      
-      
       filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/M_pools_re-run//lgillet_L160920_012-Manchester_dirty_phospho_-_Pool_M6_-_SW/lgillet_L160920_012-Manchester_dirty_phospho_-_Pool_M6_-_SW.mzML.gz_osw_chrom.sqMass"
       frag_ids <- list()
       frag_ids[[1]] <- c("7788", "7789", "7790", "7791", "7792", "7793")
     }
+    
+    cat('Reading in chromatogram of ', crayon::blue$bold$underline('sqmass type.\n', sep=''))
     
     ##*********************************************
     ##      Python Setup
