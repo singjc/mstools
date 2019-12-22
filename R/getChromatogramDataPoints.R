@@ -20,6 +20,9 @@
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
 getChromatogramDataPoints_ <- function( filename, frag_ids ){
+  ## Setup Logging
+  mstools:::log_setup
+  
   ## Get File Extension Type
   fileType <- gsub( '.*\\.', '', filename)
   ## Extract Chromatogram Data
@@ -37,8 +40,12 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
     ##*********************************************
     ##      Python Setup
     ##*********************************************
+    message( "** Finding Python **"  )
     mstools:::find_python()
+    warning( "Python Found: ", reticulate::py_config()$python )
+    message( "** Installing Required Python Modules ** ")
     mstools:::install_python_dependencies()
+    message( "** Loading Python Modules **")
     mstools:::.onload()
     
     ##********************************************
@@ -47,6 +54,10 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
     
     # Connect to database
     sqmass_db <- DBI::dbConnect( RSQLite::SQLite(), filename )
+    
+    ##*********************************************************************
+    ##    Get Chromatogram ID to Transition Fragment IDs mapping
+    ##*********************************************************************
     
     # Query statement
     sql_query <- "SELECT * FROM CHROMATOGRAM WHERE NATIVE_ID in ("
