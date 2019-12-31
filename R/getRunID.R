@@ -17,6 +17,11 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import dplyr
+#' @import dbplyr
+#' @import RSQLite
+#' @import DBI
+#' 
 getRunID_ <- function( oswfile, run_name ){
   
   DEBUG=F
@@ -37,6 +42,7 @@ getRunID_ <- function( oswfile, run_name ){
   
   # Query Databasse
   df <- dplyr::collect( dplyr::tbl(osw_db, dbplyr::sql(stmt)) )
+
   # Disconnect from database
   DBI::dbDisconnect(osw_db)
   

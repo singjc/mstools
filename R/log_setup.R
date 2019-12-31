@@ -11,16 +11,19 @@
 #' 
 #' @title Logging system setup
 #' @description Setup logging system to write out error, trace, warnings and general information to file
+#' @import MazamaCoreUtils
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
 log_setup <- function(){
 # Setup Logging System
 tmpDir <- getwd()
+cat('log dir: ', tmpDir, '\n', sep = ' ')
 MazamaCoreUtils::logger.setup(
-  traceLog = file.path( tmpDir,"mstools-trace.log" ),
+  traceLog = file.path( tmpDir, "mstools-trace.log" ),
   errorLog = file.path( tmpDir, "mstools-error.log" ),
   warnLog = file.path( tmpDir, "mstools-warn.log" ),
   infoLog = file.path( tmpDir, "mstools-info.log" )
 )
+MazamaCoreUtils::logger.setLevel( level='INFO' )
 }

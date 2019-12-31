@@ -26,6 +26,9 @@
 #' @param RT_pkgrps A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #' 
+#' @import ggplot2
+#' @import data.table
+#'
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
 getXIC <- function( graphic_obj=ggplot2::ggplot(), 
@@ -412,19 +415,95 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Plotting PRECURSOR Trace
     ##*********************************
     graphic_obj <- graphic_obj + 
-      geom_line( data=df_plot, aes(RT, Int, group=Transition), show.legend = T, alpha=0.65, linetype='solid', col='black' )
+      geom_line( data=df_plot, aes(RT, Int, group=Transition, alpha=0.65, text=paste('Transition: ', Transition, sep='')), show.legend = show_legend, linetype='solid', col='black' )  +
+      scale_alpha_identity(name="Precursor", guide='legend', labels=unique(df_plot$Transition))
   } else if ( transition_type=='detecting' ){
     ##*********************************
     ## Plotting DETECTING Traces
     ##*********************************
     graphic_obj <- graphic_obj + 
-      geom_line(data=df_plot, aes(RT, Int, group=Transition), alpha=0.75, col='gray', linetype='solid', show.legend = F) 
+      geom_line(data=df_plot, aes(RT, Int, group=Transition, fill=Transition, text=paste('Transition: ', Transition, sep='')), alpha=0.75, col='gray', linetype='solid', show.legend = show_legend) +
+      scale_fill_manual(name="Detecting",values=rep('gray', length(unique(df_plot$Transition))) )
   } else{
     ##*********************************
     ## Plotting IDENTIFYING Traces
     ##*********************************
     df_plot <- merge( df_plot, select( df_lib_filtered[df_lib_filtered$TRANSITION_ID %in% unique(df_plot$TRANSITION_ID),], c(TRANSITION_ID, TRAML_ID) ), by='TRANSITION_ID' )
     
+    ##_________________________________________
+    ##
+    ##    Get unique peptide information
+    ##_________________________________________
+
+    uni_forms <- unique (unlist( strsplit( unique(gsub(".*\\{|\\}.*", "", df_plot$TRAML_ID)), split='\\|') ) )
+    
+    # uni_forms <- c("EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLSLM(UniMod:35)DVK", "EGHAQNPM(UniMod:35)EPSVPQLS(UniMod:21)LM(UniMod:35)DVK")
+    
+    peptide_modification_positions <- lapply( uni_forms, function(pep){ mstools::getModificationPosition_( pep ) } )
+    names(peptide_modification_positions) <- uni_forms
+    
+    do.call( rbind, lapply(peptide_modification_positions, function(x){ x[match(names(peptide_modification_positions[[1]]), names(x))]}) ) %>% ## Turn list into dataframe, and ensure items in list are matching by name
+      as.data.frame() %>%
+      tibble::rownames_to_column( "peptides" ) %>%
+      mutate( unimod_peptides = mstools::codenameTounimod(peptides) ) %>%
+      mutate( target_peptide = unimod_peptides==mod ) -> peptides_information_df
+    
+    ## Get modification columns
+    modification_col_indices <- grep('modification_.*', colnames(peptides_information_df))
+    
+    ## convert naked peptide length and modification position columns to nemeric vectors
+    lapply(modification_col_indices, function(col){
+      data.table::set( peptides_information_df, NULL, col, as.numeric(peptides_information_df[[col]]) )
+    })
+    class(peptides_information_df$naked_peptide_length) <- "numeric"
+    
+    if ( length(modification_col_indices)>1 ){
+    modifications_position_df <- peptides_information_df[,modification_col_indices] 
+    
+    target_modification <- apply(modifications_position_df, 2, function( positions ){
+      if( length(unique(positions)) > 1){
+        return( TRUE )
+      } else {
+        return( FALSE )
+      }
+    })
+    
+    target_modification <- names(target_modification)[target_modification]
+    } else {
+      target_modification <- grep('modification_.*', colnames(peptides_information_df), value = TRUE)
+    }
+    
+    peptides_information_df %>%
+      dplyr::mutate( 
+        modification_position = ifelse( !!rlang::sym(target_modification)==max( !!rlang::sym(target_modification) ), 'most_right',
+                                        ifelse( !!rlang::sym(target_modification)==min( !!rlang::sym(target_modification) ), 'most_left',
+                                        ifelse( !!rlang::sym(target_modification)!=max( !!rlang::sym(target_modification) | !!rlang::sym(target_modification)!=max( !!rlang::sym(target_modification) ) ), 'inbetween', 'nan') 
+                                      ) )
+        ) -> peptides_information_df
+    
+    ### Get series starting from up to modification amino acid
+    
+    peptides_information_df %>%
+      dplyr::mutate(
+        
+        ion_series_start = ifelse( modification_position=='most_right' &  target_peptide, 
+                                   dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )+1, 
+                                   dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod )-1
+          
+        ),
+        ion_series_end = ifelse( modification_position=='most_right' &  target_peptide, 
+                                 dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod ), 
+                                 dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )
+                                 
+        ),
+        use_ion_series = ifelse( modification_position=='most_right', 'y', 'b')
+        
+        
+      ) -> peptides_information_df
+    class(peptides_information_df$ion_series_start) <- "numeric"
+    class(peptides_information_df$ion_series_end) <- "numeric"
+    
+
     ## @TODO: Will need a better way to do this
     if ( !(is.null(top_trans_mod_list)) ){
       
@@ -554,35 +633,43 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       #### Unique Identifying Transitions
       if ( plotIdentifying.Unique==TRUE ){
         df_plot %>%
-          dplyr::filter( grepl(glob2rx( paste('*', gsub('\\(UniMod:259\\)|\\(UniMod:267\\)|\\(Label.*)','', gsub('UniMod:35', 'Oxidation', gsub('UniMod:4', 'Carbamidomethyl', gsub('UniMod:21','Phospho',mod)))) ,'*',sep='')), 
-                               gsub('\\(Label:13C\\(6\\)15N\\(4\\)\\)', '', gsub('.*\\{|\\}.*','',df_plot$TRAML_ID))) &
-                           (!grepl(glob2rx('*\\|*'), 
-                                   gsub('\\(Label:13C\\(6\\)15N\\(4\\)\\)', '', gsub('.*\\{|\\}.*','',df_plot$TRAML_ID)))) ) -> tmp_plot
+          dplyr::filter( 
+            grepl( glob2rx( paste( paste0( peptides_information_df$use_ion_series[peptides_information_df$target_peptide], 
+                                    base::seq(
+                                      from=peptides_information_df$ion_series_end[peptides_information_df$target_peptide], 
+                                      to=peptides_information_df$ion_series_start[peptides_information_df$target_peptide], 
+                                      by=ifelse(peptides_information_df$use_ion_series[peptides_information_df$target_peptide]=='y',-1,1) 
+                                      )  
+                                    ), collapse = '|' ) 
+                          ), gsub('.*\\{[a-zA-Z0-9\\|\\(\\)]+\\}_\\d+.\\d+_\\d+.\\d+_-\\d+.\\d+_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID) 
+              
+            )
+            ) -> tmp_plot
         
         
-        mods_present <- names(uni_mod_list)
-        alternate_mod <- mods_present[ !( mods_present %in% mod)]
-        alternate_mod_index <- unlist(lapply(alternate_mod, getModificationPosition_))
-        current_mod_index <- getModificationPosition_(mod)
+        # mods_present <- names(uni_mod_list)
+        # alternate_mod <- mods_present[ !( mods_present %in% mod)]
+        # alternate_mod_index <- unlist(lapply(alternate_mod, getModificationPosition_))
+        # current_mod_index <- getModificationPosition_(mod)
         
-        identification_traml_ids <- str_split( gsub('.*\\{|\\}.*', '', df_plot$TRAML_ID), '\\|' )
-        current_mod_transitions <- unlist(lapply( identification_traml_ids, function( traml_id ){
-          mods_for_ident_transition <- unique(unlist(lapply(traml_id, getModificationPosition_)))
-          if ( any( current_mod_index == mods_for_ident_transition ) ){
-            if ( any( (mods_for_ident_transition %in% alternate_mod_index) ) ){
-              return( FALSE )
-            } else {
-              return( TRUE )
-            }
-          } else {
-            return( FALSE )
-          } 
-        } ) )
+        # identification_traml_ids <- str_split( gsub('.*\\{|\\}.*', '', df_plot$TRAML_ID), '\\|' )
+        # current_mod_transitions <- unlist(lapply( identification_traml_ids, function( traml_id ){
+        #   mods_for_ident_transition <- unique(unlist(lapply(traml_id, getModificationPosition_)))
+        #   if ( any( current_mod_index == mods_for_ident_transition ) ){
+        #     if ( any( (mods_for_ident_transition %in% alternate_mod_index) ) ){
+        #       return( FALSE )
+        #     } else {
+        #       return( TRUE )
+        #     }
+        #   } else {
+        #     return( FALSE )
+        #   } 
+        # } ) )
         
         
-        df_plot %>%
-          dplyr::filter( current_mod_transitions ) -> df_plot
-        tmp_plot <- df_plot
+        # df_plot %>%
+        #   dplyr::filter( current_mod_transitions ) -> df_plot
+        # tmp_plot <- df_plot
         
         # len_unmod <- nchar( unique(df_lib$UNMODIFIED_SEQUENCE) )
         # uni_mod_list <- getSiteDeterminingIonInformation_( mod, len_unmod )
@@ -627,7 +714,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         if ( dim(tmp_plot)[1] > 0){
           
           graphic_obj <- graphic_obj + 
-            geom_line(data=tmp_plot, aes(RT, Int, col=Transition), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) #+ 
+            geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) +
+            guides(col=guide_legend(title="Identifying"))  #+ 
           # theme(legend.text = element_text(size = 2),
           #       legend.key.size = unit(0.5, "cm"))
         }
@@ -664,7 +752,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         if ( dim(tmp_plot)[1] > 0){
           
           graphic_obj <- graphic_obj + 
-            geom_line(data=tmp_plot, aes(RT, Int, col=Transition), linetype='F1', show.legend = show_legend) #+ 
+            geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='F1', show.legend = show_legend) +
+            guides(col=guide_legend(title="Identifying"))  #+ 
           # theme(legend.text = element_text(size = 2),
           #       legend.key.size = unit(0.5, "cm"))
         }
@@ -699,7 +788,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         
         if ( dim(tmp_plot)[1] > 0){
           graphic_obj <- graphic_obj + 
-            geom_line(data=tmp_plot, aes(RT, Int, col=Transition), linetype='dashed', show.legend = show_legend) #+ 
+            geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='dashed', show.legend = show_legend) +
+            guides(col=guide_legend(title="Identifying"))  #+ 
           # theme(legend.text = element_text(size = 2),
           #       legend.key.size = unit(0.5, "cm"))
         }

@@ -25,7 +25,11 @@ getModificationPosition_ <- function( mod_seq, character_index=F ){
     
     mod_seq <- "EGHAQNPMEPSVPQLS(UniMod:21)LMDVK"
     mod_seq <- "EGHAQNPMEPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
+    mod_seq <- "ANS(UniMod:21)SPTTNIDHLK(Label:13C(6)15N(2))"
   }
+  
+  ## Get rid of heavy labels. @TODO fix this later, make more flexible
+  mod_seq <- gsub('\\(Label:13C\\(\\d+\\)15N\\(\\d+\\)\\)', '', mod_seq)
   
   if (character_index==F){
     modification_labels <- regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]

@@ -17,7 +17,7 @@ XICMasterPlotFcn_(
   plotIdentifying.Unique = T,
   plotIdentifying.Shared = F,
   plotIdentifying.Against = F,
-  smooth_chromatogram = T,
+  smooth_chromatogram = list(p = 4, n = 9),
   doFacetZoom = T,
   FacetFcnCall = NULL,
   doPlot = T,

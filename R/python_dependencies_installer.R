@@ -1,30 +1,56 @@
 ## Install python dependency
-
+#' @import reticulate
 find_python <- function(){
+  ## Setup Logging
+  mstools:::log_setup()
   
+  MazamaCoreUtils::logger.info(  "** Finding Python **"  )
   # "/home/justincsing/anaconda3/envs/mstools_test/"
   ## Check for available versions of python
   pythons_available <- reticulate::py_discover_config()
   ## Just use first isntance of python. @ TODO, might need to find a better way to do this
-  use_python <- pythons_available$python_versions[1]
-  reticulate::use_python( use_python )
+  use_first_python <- pythons_available$python_versions[1]
+  MazamaCoreUtils::logger.warn( "Python Found: %s", use_first_python )
+  Sys.setenv( RETICULATE_PYTHON=use_first_python )
+  reticulate::use_python( use_first_python )
   
 }
 
+#' @import reticulate
 install_python_dependencies <- function(method = "auto", conda = "auto") {
+  
+  ## Setup Logging
+  mstools:::log_setup()
+  MazamaCoreUtils::logger.info( "** Checking for Required Python Modules ** ")
+  
+  ## Check for available versions of python
+  pythons_available <- reticulate::py_discover_config()
+  ## Just use first isntance of python. @ TODO, might need to find a better way to do this
+  use_first_python <- pythons_available$python_versions[1]
+  
+  # MazamaCoreUtils::logger.info("Installing modules for python: %s", Sys.getenv("RETICULATE_PYTHON"))
+  
   pymsnumpress_available=FALSE
+  cython_available=FALSE
   sqlite3_available=FALSE
   pandas_available=FALSE
-  if ( !reticulate::py_module_available("PyMSNumpress") ){
-    system( paste( use_python, "-m pip install pymsnumpress", sep=" "))
+  if ( !reticulate::py_module_available("PyMSNumpress") | !pymsnumpress_available ){
+    if ( !reticulate::py_module_available("cython") | !cython_available ){
+      MazamaCoreUtils::logger.info( "** -> Installing Python Module: cython" )
+      reticulate::py_install( "cython", pip=TRUE )
+    }
+    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pymsnumpress" )
+    reticulate::py_install( "PyMSNumpress", pip=TRUE )
     pymsnumpress_available=TRUE
   }
-  if ( !reticulate::py_module_available("sqlite3") ){
-    reticulate::py_install("sqlite3", method = method, conda = conda)
+  if ( !reticulate::py_module_available("sqlite3") | !sqlite3_available ){
+    reticulate::py_install("sqlite3")
+    MazamaCoreUtils::logger.info( "** -> Installing Python Module: sqlite3" ) 
     sqlite3_available=TRUE
   }
-  if ( !reticulate::py_module_available("pandas") ){
-    reticulate::py_install("pandas", method = method, conda = conda)
+  if ( !reticulate::py_module_available("pandas") | !pandas_available ){
+    reticulate::py_install("pandas")
+    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pandas" )
     pandas_available=TRUE
   }
 }
@@ -54,6 +80,8 @@ python_dummy_modules <- function() {
   # Clean up
   rm(pybuiltins)
 }
+
+#' @import reticulate
 .onload <- function( libname, pkgname ){
   pymsnumpress <- NULL
   pyzlib <- NULL

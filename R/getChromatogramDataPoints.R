@@ -21,10 +21,10 @@
 #' 
 getChromatogramDataPoints_ <- function( filename, frag_ids ){
   ## Setup Logging
-  mstools:::log_setup
+  mstools:::log_setup()
   
   ## Get File Extension Type
-  fileType <- gsub( '.*\\.', '', filename)
+  fileType <- (tools::file_ext(osw_file))
   ## Extract Chromatogram Data
   if ( tolower(fileType)=='sqmass' ){
     # Read in an sqMass Chromatogram ------------------------------------------
@@ -40,13 +40,13 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
     ##*********************************************
     ##      Python Setup
     ##*********************************************
-    message( "** Finding Python **"  )
-    mstools:::find_python()
-    warning( "Python Found: ", reticulate::py_config()$python )
-    message( "** Installing Required Python Modules ** ")
-    mstools:::install_python_dependencies()
-    message( "** Loading Python Modules **")
-    mstools:::.onload()
+    
+    if ( !reticulate::py_available()  ){
+      mstools:::find_python()
+      mstools:::install_python_dependencies()
+      MazamaCoreUtils::logger.info( "** Loading Python Modules **")
+      mstools:::.onload()
+    }
     
     ##********************************************
     ##    Do Actual Int and RT Extraction 
@@ -135,15 +135,20 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
   } else if ( tolower(fileType)=='mzml' ){
     if ( F ){
       filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR/inst/extdata/mzml/chludwig_K150309_013_SW_0.chrom.mzML"
+      filename <- '/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR/inst/extdata/mzml/chludwig_K150309_013_SW_0.chrom.mzML'
+      filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/mzML_Chroms_Decomp/chludwig_K150309_013_SW_0_osw_chrom.mzML"
     }
     # Read in an mzML chromatogram --------------------------------------------
     cat('Reading in chromatogram of ', crayon::blue$bold$underline('mzML type.\n', sep=''))
+    MazamaCoreUtils::logger.info( "** mzR: Loading mzML chromatogram into mz_object **")
     # Create an mzR object that stores all header information, and use ProteoWizard api to access data from MzML file
     mz_object <- mzR::openMSfile(filename, backend = "pwiz", verbose = T)
     # Get header information for chromtagograms
     chromHead <- mzR::chromatogramHeader(mz_object)
+    MazamaCoreUtils::logger.info( "** mzR: Extracting chromatogram indices **")
     # Extract all the indices of chromatograms that match the transition names of the ones found in the TargetPetides file
     chromatogramIndices <- chromHead$chromatogramIndex[ match(frag_ids[[1]], chromHead$chromatogramId)  ]
+    MazamaCoreUtils::logger.info( "** mzR: Extracting chromatographic data **")
     # Check how many chromatogramIndices are present to extract
     if ( length(chromatogramIndices)==1 ){
       rawChrom <- list(mzR::chromatograms(mz_object, chromatogramIndices))

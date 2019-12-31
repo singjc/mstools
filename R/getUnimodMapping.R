@@ -104,17 +104,20 @@ codenameTounimod <- function( mod_seq, out='sequence'){
     mod_seq <- "EGHAQNPMEPSVPQLSLMDVK"
     mod_seq <- "EGHAQNPMEPSVPQLS(Phospho)LMDVK"
     mod_seq <- "EGHAQNPM(Oxidation)EPS(Phospho)VPQLS(Phospho)LM(Oxidation)DVK"
+    mod_seq <- "ANS(Phospho)SPTTNIDHLK(Label:13C(6)15N(2))"
   }
   ## Get Modifications
-  modification_labels <- regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
+  ## Need to make this more robust, somehow
+  modification_labels <- regmatches(mod_seq, gregexpr("\\(\\w+\\)|\\(Label:13C\\(\\d+\\)15N\\(\\d+\\)\\)", mod_seq))[[1]]
   ## Check if there were any modifications
   if ( length(modification_labels) >= 1 ){
     ## convert query UniMod IDs to modification code name
-    out_code_names <- plyr::mapvalues( gsub('\\(|\\)','',modification_labels), from = mstools::unimod_mapping$ex_code_name, to = paste0("UniMod:", mstools::unimod_mapping$record_id), warn_missing = FALSE)
-    names(out_code_names) <- gsub('\\(|\\)','',modification_labels)
+    out_code_names <- plyr::mapvalues( gsub('^\\(|\\)$','',modification_labels), from = mstools::unimod_mapping$ex_code_name, to = paste0("UniMod:", mstools::unimod_mapping$record_id), warn_missing = FALSE)
+    names(out_code_names) <- gsub('^\\(|\\)$','',modification_labels)
     ## Convery to code name
     mod_seq %>%
       stringr::str_replace_all( out_code_names ) -> converted_mod_seq
+    converted_mod_seq <- gsub('\\Label:13C\\(\\d+\\)15N\\(\\d+\\)', out_code_names[grepl('Label.*', names(out_code_names))], converted_mod_seq )
   } else {
     out_code_names <- NULL
     converted_mod_seq <- mod_seq

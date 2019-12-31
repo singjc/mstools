@@ -14,6 +14,11 @@
 #' @param dup_peps A character vector of a peptide sequence
 #' @return A ggplot-grobs table of a XIC
 #' 
+#' @import tictoc
+#' @import crayon
+#' @import parallel
+#' @import ggplot2
+#' 
 #' @author Justin Sing \url{https://github.com/singjc}
 XICMasterPlotFcn_ <- function( dup_peps, 
                                uni_mod=NULL, 
@@ -25,7 +30,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                plotIdentifying.Unique=T,
                                plotIdentifying.Shared=F,
                                plotIdentifying.Against=F,
-                               smooth_chromatogram=T, 
+                               smooth_chromatogram=list(p = 4, n = 9), 
                                doFacetZoom=T,
                                FacetFcnCall=NULL,
                                doPlot=T,
@@ -47,7 +52,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
   # verbose <- Verbose(threshold = 0)
   # cat(verbose, red('bleh'))
   
-  tic( paste('XIC plotting for ', length(dup_peps), ' peptides took: ', sep=' '))
+  tictoc::tic( paste('XIC plotting for ', length(dup_peps), ' peptides took: ', sep=' '))
   pep_counter = 0
   for ( pep in dup_peps){
     pep_counter = pep_counter + 1
@@ -55,9 +60,9 @@ XICMasterPlotFcn_ <- function( dup_peps,
     # record_list <- list()
     # record_i dx <- 1
     # for ( file_idx in seq(1,length(sqMass_files),1) ){
-    record_list <- mclapply( seq(1,length(sqMass_files),1), function(file_idx){
+    record_list <- parallel::mclapply( seq(1,length(sqMass_files),1), function(file_idx){
       in_sqMass <- sqMass_files[file_idx]
-      run_name <- gsub('_osw_chrom[.]sqMass$', '', basename(in_sqMass))
+      run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$', '', basename(in_sqMass))
       run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
       
       cat(crayon::blue('@ Run: ', run),'\n', sep='')
@@ -80,11 +85,11 @@ XICMasterPlotFcn_ <- function( dup_peps,
         
         cat('   ~ Getting peptide library data.. for ', pep, '\n', sep='')
         # Retrieve library data for specific peptide
-        df_lib <- getPepLibData_( in_lib, peptide_id=pep )
+        df_lib <- mstools::getPepLibData_( in_lib, peptide_id=pep )
         
         cat('   ~ Getting OpenSwath data.. for ', pep, '\n', sep='')
         # Load OSW Merged df
-        osw_df <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
+        osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
         if ( dim(osw_df)[1]==0 ){ cat(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep=''); return(list()) }
         
         # Get Min and Max RT for alignment of x-axis between the two isoforms
@@ -107,12 +112,12 @@ XICMasterPlotFcn_ <- function( dup_peps,
         
         # Filter df_lib based on only the uni modifications with specified charge state found in OSW results
         df_lib %>%
-          dplyr::filter( PRECURSOR_CHARGE==Mode(current_uni_mod_charges) ) -> df_lib
+          dplyr::filter( PRECURSOR_CHARGE==mstools::Mode(current_uni_mod_charges) ) -> df_lib
         
         # Get a list of unique modifications
         #### @TODO: make this more versatile for cases with more than 2 isoforms
         if (is.null(uni_mod)){
-          uni_mod <- gsub('_\\d+_\\d+$', '', desired_uni_mods[grep( paste('_\\d+_',Mode(as.numeric(gsub('.*_', '', desired_uni_mods))), sep=''), desired_uni_mods)])
+          uni_mod <- gsub('_\\d+_\\d+$', '', desired_uni_mods[grep( paste('_\\d+_',mstools::Mode(as.numeric(gsub('.*_', '', desired_uni_mods))), sep=''), desired_uni_mods)])
           uni_mod <- sort(uni_mod)
           # uni_mod <- uni_mod[1:2]
           if(length(uni_mod)>2 | N_sample==1){
@@ -120,7 +125,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             
             cat('Will randomly sample 2 of the ', length(uni_mod), ' peptidoforms to process...\n')
             n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
-            n_mod_sites_common <- Mode(n_mod_sites)
+            n_mod_sites_common <- mstools::Mode(n_mod_sites)
             cat( crayon::magenta$underline('There is(are) ', crayon::bold(length(n_mod_sites_common)), ' group(s) of isoforms...\n'))
             if ( !is.null(idx_draw_these) ){
               uni_isoform_group_list <- list()
@@ -134,7 +139,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             
           } else {
             n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
-            n_mod_sites_common <- Mode(n_mod_sites)
+            n_mod_sites_common <- mstools::Mode(n_mod_sites)
             if ( length(uni_mod)==1 ){ mod=uni_mod; max_Int=0; return( drawNakedPeptide_(df_lib=df_lib, mod=mod, pep=pep, in_sqMass=in_sqMass, plotPrecursor=plotPrecursor, plotIntersectingDetecting=plotIntersectingDetecting,  plotIdentifying=plotIdentifying, plotUniqueDetecting=plotUniqueDetecting, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, intersecting_mz=NULL, uni_mod_list=NULL, max_RT=max_RT, min_RT=min_RT, max_Int=max_Int, in_osw=in_osw, smooth_chromatogram=smooth_chromatogram, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, show_all_pkgrprnk=show_all_pkgrprnk, FacetFcnCall=FacetFcnCall, verbosity=verbosity, show_legend = show_legend ) ) } 
             if ( length(uni_mod)==1 ){ n_sample=1 } else { n_sample=2 } # @TODO: Need to figure something out for this and the line above...
             if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ cat(crayon::red('These are not isoforms of each other... Skipping... \n')); return(list()) }
@@ -155,7 +160,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             dplyr::filter( FullPeptideName %in% uni_mod) %>%
             select( Charge ) %>%
             as.matrix() %>%
-            Mode() -> Isoform_Target_Charge
+            mstools::Mode() -> Isoform_Target_Charge
           
           if ( length(Isoform_Target_Charge)>1 ){
             
@@ -197,15 +202,23 @@ XICMasterPlotFcn_ <- function( dup_peps,
           ###############################
           ## Get Site Determining Ions ##
           ###############################
-          cat(paste('   ~ Getting site Determining Ions information for each peptidoform', sep=''))
-          if ( N_sample!=1 ){
-            
-            uni_mod_list <- getPairSiteDeterminingIonInformation_( uni_mod, len_unmod )
-          } else {
-            uni_mod_list <- getSiteDeterminingIonInformation_( uni_mod, len_unmod )
-          }
-          ## Check for errors in uni_mod_list
-          if ( suppressWarnings( uni_mod_list=='skip' ) ){ cat('skipping...\n'); next }
+          # cat(paste('   ~ Getting site Determining Ions information for each peptidoform\n', sep=''))
+          # if ( N_sample!=1 ){
+          #   print(uni_mod)
+          #   print(len_unmod) 
+          #   print(N_sample)
+          #   print('getPairSiteDeterminingIonInformation_')
+          #   uni_mod_list <- getPairSiteDeterminingIonInformation_( uni_mod, len_unmod )
+          # } else {
+          #   print(uni_mod)
+          #   print(len_unmod)
+          #   print(N_sample)
+          #   print('getSiteDeterminingIonInformation_')
+          #   uni_mod_list <- getSiteDeterminingIonInformation_( uni_mod, len_unmod )
+          # }
+          # ## Check for errors in uni_mod_list
+          # if ( suppressWarnings( uni_mod_list=='skip' ) ){ cat('skipping...\n'); next }
+          uni_mod_list <- NULL
           
           if ( plotIntersectingDetecting==T & plotUniqueDetecting==T ){
             # df_lib %>%
@@ -236,7 +249,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
           ## Get Top Transitions with good PEP ##
           #######################################
           if ( use_top_trans_pep==T ){
-            tic(paste('   ~ Getting Top Transitions that scored a low PEP', sep=''))
+            tictoc::tic(paste('   ~ Getting Top Transitions that scored a low PEP', sep=''))
             Transition_Scores <- getTransitionScores_( in_osw, run_name, precursor_id='', peptide_id=pep )
             
             if( is.null(unique(unlist(Transition_Scores$transition_id))) ){ cat(crayon::red('These is no Transition ID information... Skipping... \n')); next  }
@@ -257,7 +270,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                 arrange( transition_pep ) -> mod_transition_scores
             }, df_lib, Transition_Scores)
             names(top_trans_mod_list) <- uni_mod
-            toc()
+            tictoc::toc()
           } else {
             top_trans_mod_list <- NULL
           }
@@ -272,12 +285,25 @@ XICMasterPlotFcn_ <- function( dup_peps,
             ###########################
             if ( plotPrecursor==T ){
               
-              g <- ggplot()
-              g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='precursor', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge, verbosity=verbosity )
+              g <- ggplot2::ggplot()
+              g <- mstools::getXIC( graphic_obj = g, 
+                                    df_lib = df_lib, 
+                                    mod = mod, 
+                                    Isoform_Target_Charge = Isoform_Target_Charge,
+                                    chromatogram_file = in_sqMass,  
+                                    transition_type = 'precursor', 
+                                    uni_mod_list = uni_mod_list, 
+                                    max_Int = max_Int, 
+                                    in_osw=NULL, 
+                                    smooth_chromatogram=smooth_chromatogram, 
+                                    doFacetZoom=F, 
+                                    top_trans_mod_list=NULL, 
+                                    show_n_transitions=show_n_transitions, 
+                                    verbosity=verbosity )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             } else {
-              g <- ggplot()
+              g <- ggplot2::ggplot()
             }
             
             #################################
@@ -286,13 +312,39 @@ XICMasterPlotFcn_ <- function( dup_peps,
             
             ## INTERSECTING
             if ( plotIntersectingDetecting==T ){
-              g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='detecting_intersection', intersecting_mz, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, show_n_transitions=show_n_transitions, verbosity=verbosity )
+              g <- mstools::getXIC( graphic_obj = g, 
+                                    df_lib = df_lib, 
+                                    mod = mod, 
+                                    Isoform_Target_Charge = Isoform_Target_Charge,
+                                    chromatogram_file = in_sqMass, 
+                                    transition_type = 'detecting', 
+                                    uni_mod_list = uni_mod_list, 
+                                    max_Int = max_Int, 
+                                    in_osw=NULL, 
+                                    smooth_chromatogram=smooth_chromatogram, 
+                                    doFacetZoom=F, 
+                                    top_trans_mod_list=NULL, 
+                                    show_n_transitions=show_n_transitions, 
+                                    verbosity=verbosity )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             }
             ## UNIQUE
             if (plotUniqueDetecting==T ){
-              g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='detecting_unique', intersecting_mz, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, show_n_transitions=show_n_transitions, verbosity=verbosity )
+              g <- mstools::getXIC( graphic_obj = g, 
+                                    df_lib = df_lib, 
+                                    mod = mod, 
+                                    Isoform_Target_Charge = Isoform_Target_Charge,
+                                    chromatogram_file = in_sqMass, 
+                                    transition_type='detecting_unique', 
+                                    uni_mod_list = uni_mod_list, 
+                                    max_Int = max_Int, 
+                                    in_osw=NULL, 
+                                    smooth_chromatogram=smooth_chromatogram, 
+                                    doFacetZoom=F, 
+                                    top_trans_mod_list=NULL, 
+                                    show_n_transitions=show_n_transitions, 
+                                    verbosity=verbosity )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             }
@@ -300,7 +352,20 @@ XICMasterPlotFcn_ <- function( dup_peps,
             ##    IDENTIFYING TRANSITIONS   ###
             ###################################
             if (plotIdentifying==T){
-              g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='identifying', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=top_trans_mod_list, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, show_n_transitions=show_n_transitions, show_legend=show_legend, verbosity=verbosity )
+              g <-mstools:: getXIC( graphic_obj = g, 
+                                    df_lib = df_lib, 
+                                    mod = mod, 
+                                    Isoform_Target_Charge = Isoform_Target_Charge,
+                                    chromatogram_file = in_sqMass,  
+                                    transition_type='identifying', 
+                                    uni_mod_list = uni_mod_list, 
+                                    max_Int = max_Int, 
+                                    in_osw=NULL, 
+                                    smooth_chromatogram=smooth_chromatogram, 
+                                    doFacetZoom=F, 
+                                    top_trans_mod_list=NULL, 
+                                    show_n_transitions=show_n_transitions, 
+                                    verbosity=verbosity )
               max_Int <- g$max_Int
               g <- g$graphic_obj
               
@@ -311,7 +376,23 @@ XICMasterPlotFcn_ <- function( dup_peps,
             ###################################
             ##     ADD OSW RESULTS INFO     ###
             ###################################
-            g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='none', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge, RT_pkgrps=RT_pkgrps, show_manual_annotation=show_manual_annotation, FacetFcnCall=FacetFcnCall, verbosity=verbosity, show_legend = show_legend  )
+            g <- mstools::getXIC( graphic_obj = g, 
+                                  df_lib = df_lib, 
+                                  mod = mod, 
+                                  Isoform_Target_Charge = Isoform_Target_Charge,
+                                  chromatogram_file = in_sqMass, 
+                                  transition_type='none', 
+                                  uni_mod_list = uni_mod_list, 
+                                  max_Int = max_int, 
+                                  in_osw = in_osw, 
+                                  doFacetZoom=doFacetZoom, 
+                                  top_trans_mod_list=NULL, 
+                                  Isoform_Target_Charge=Isoform_Target_Charge, 
+                                  RT_pkgrps=RT_pkgrps, 
+                                  show_manual_annotation=show_manual_annotation, 
+                                  FacetFcnCall=FacetFcnCall, 
+                                  verbosity=verbosity, 
+                                  show_legend = show_legend  )
             max_Int <- g$max_Int
             g <- g$graphic_obj
             
@@ -339,7 +420,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
       }
       )
       
-    }, mc.cores = detectCores()-3 ) ## mclapply
+    }, mc.cores = parallel::detectCores()-3 ) ## mclapply
     # }# for loop
     # print(record_list)
     # leh <- 0
@@ -348,7 +429,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
       draw_chrom_error <- tryCatch({
         if( doPlot==T & length(record_list[[1]])!=0 ){
           # cat( 'Length of record_list: ', length(record_list), '\n', sep='' )
-          # print( record_list )
+          # print( record_list 
           # print('stop')
           # print((record_list))
           ### RECORD
@@ -409,7 +490,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
       })
     }# length of record plot list chec
   }
-  toc()
+  tictoc::toc()
   return( record_list[[1]][[1]] )
 }
 
