@@ -19,12 +19,22 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @importFrom tools file_ext
+#' @import MazamaCoreUtils
+#' @import crayon
+#' @import dplyr
+#' @importFrom dplyr %>%
+#' @import dbplyr
+#' @import RSQLite
+#' @import DBI
+#' @import reticulate
+#' @import mzR
 getChromatogramDataPoints_ <- function( filename, frag_ids ){
   ## Setup Logging
   mstools:::log_setup()
   
   ## Get File Extension Type
-  fileType <- (tools::file_ext(osw_file))
+  fileType <- (tools::file_ext(filename))
   ## Extract Chromatogram Data
   if ( tolower(fileType)=='sqmass' ){
     # Read in an sqMass Chromatogram ------------------------------------------

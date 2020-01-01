@@ -15,10 +15,11 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import MazamaCoreUtils
 log_setup <- function(){
 # Setup Logging System
 tmpDir <- getwd()
-cat('log dir: ', tmpDir, '\n', sep = ' ')
+cat('log directory: ', tmpDir, '\n', sep = ' ')
 MazamaCoreUtils::logger.setup(
   traceLog = file.path( tmpDir, "mstools-trace.log" ),
   errorLog = file.path( tmpDir, "mstools-error.log" ),

@@ -30,6 +30,10 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import DBI
+#' @import RSQLite
+#' @import dbplyr
+#' @import dplyr
 getOSWData_ <- function ( oswfile,
                           run_name='',
                           precursor_id='',

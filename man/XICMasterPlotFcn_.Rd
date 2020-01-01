@@ -12,9 +12,9 @@ XICMasterPlotFcn_(
   in_osw,
   plotPrecursor = T,
   plotIntersectingDetecting = T,
-  plotUniqueDetecting = T,
-  plotIdentifying = T,
-  plotIdentifying.Unique = T,
+  plotUniqueDetecting = F,
+  plotIdentifying = F,
+  plotIdentifying.Unique = F,
   plotIdentifying.Shared = F,
   plotIdentifying.Against = F,
   smooth_chromatogram = list(p = 4, n = 9),
@@ -30,6 +30,7 @@ XICMasterPlotFcn_(
   use_top_trans_pep = F,
   show_n_transitions = NULL,
   show_all_pkgrprnk = T,
+  show_manual_annotation = NULL,
   show_legend = T,
   verbosity = 0
 )

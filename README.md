@@ -9,7 +9,7 @@ library(devtools)
 install_github("https://github.com/Roestlab/mstools")
 ```
 # SQL Database File Filtering
-
+***
 The following examples will show examples of filtering **OSW**, **PQP**, and **SQMASS** database files, for a specific list of peptides. This can be useful if you wish to share small example files for a specific few peptides. <br/>
 **WARNING:** These filtering methods will overwrite the database! Create a copy of the original database to use as the filtered file.
 
@@ -48,7 +48,7 @@ for ( file in files ){
 ```
 
 # Extracting data from SQL Database Files into R data.tables
-
+***
 The following examples will show examples of extracting data from **OSW** and **PQP** database files, into R data.tables that can be used for visualization or analysis.
 
 ## Extract Data from PQP file

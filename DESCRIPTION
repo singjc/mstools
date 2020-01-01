@@ -1,10 +1,10 @@
 Package: mstools
 Type: Package
-Title: What the package does (short line)
+Title: OpenSWATH Mass Spectrometry Data Exploration
 Version: 1.0
 Date: 2019-11-12
 Author: Justin Sing
-Maintainer: Who to complain to <yourfault@somewhere.net>
+Maintainer: Justin Sing <justincsing@gmail.com>
 Description: More about what it does (maybe more than one line)
 License: GPL (>= 2)
 RoxygenNote: 7.0.2
@@ -12,9 +12,35 @@ LinkingTo:
     Rcpp,
      RcppArmadillo 
 Imports: 
-    Rcpp,
-     RcppArmadillo,
-     MazamaCoreUtils,
-     dplyr
+    Rcpp (>= 1.0.3),
+    RcppArmadillo (>= 0.9.800.3.0),
+    MazamaCoreUtils (>= 0.4.0),
+    dplyr (>= 0.8.3),
+    crayon (>= 1.3.4),
+    DBI (>= 1.1.0),
+    dbplyr (>= 1.4.2),
+    RSQLite (>= 2.1.4),
+    tools (>= 3.6.1),
+    base (>= 3.6.1),
+    mzR (>= 2.20.0),
+    reticulate (>= 1.13),
+    ggplot2 (>= 3.2.1),
+    ggpubr (>= 0.2.4),
+    gridExtra (>= 2.3),
+    rlang (>= 0.4.2),
+    signal (>= 0.7.6),
+    tibble (>= 2.1.3),
+    plyr (>= 1.8.5),
+    purrr (>= 0.3.3),
+    stringr (>= 1.4.0),
+    xml2 (>= 1.2.2),
+    data.table (>= 1.12.8),
+    parallel (>= 3.6.1),
+    tictoc (>= 1.0)
 Encoding: UTF-8
 LazyData: true
+Suggests: 
+    testthat,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

@@ -13,11 +13,14 @@
 #' UniMod ID to Modification code name mapping
 #' 
 #' @param unimod_xml A character path indicating the path to a unimod.xml path
-#' @importFrom dplyr %>%
 #' @return A data.table containing UniMod ID to Modification Code Name mapping
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import dplyr
+#' @importFrom dplyr %>%
+#' @import xml2
+#' @import purrr
 generateUniModMapping_ <- function( unimod_xml=NULL ){
   # library(xml2)
   # library(purrr)
@@ -30,7 +33,7 @@ generateUniModMapping_ <- function( unimod_xml=NULL ){
   ## Establish list of namespace in file
   ns <- xml2::xml_ns(unimod_dt)
   ## Extract modifications row information from unimod xml
-  tmp <- xml_find_all(unimod_dt, "//d1:modifications_row", ns)
+  tmp <- xml2::xml_find_all(unimod_dt, "//d1:modifications_row", ns)
   ## Extract record id and modifications code name and map to datatable
   purrr::map(tmp, xml2::xml_attrs) %>%
     purrr::map_df( as.list ) %>%
@@ -51,6 +54,9 @@ generateUniModMapping_ <- function( unimod_xml=NULL ){
 #' unimodTocodename( mod_seq )
 #' ## Out
 #' ## [1] "EGHAQNPM(Oxidation)EPS(Phospho)VPQLS(Phospho)LM(Oxidation)DVK"
+#' @import plyr
+#' @importFrom dplyr %>%
+#' @import stringr
 NULL
 
 #' @export
@@ -62,7 +68,7 @@ unimodTocodename <- function( mod_seq, out='sequence'){
     mod_seq <- "EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
   }
   ## Get Modifications
-  modification_labels <- regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
+  modification_labels <- base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
   ## Check if there were any modifications
   if ( length(modification_labels) >= 1 ){
   ## get UniMod IDs
@@ -95,6 +101,9 @@ unimodTocodename <- function( mod_seq, out='sequence'){
 #' codenameTounimod ( mod_seq )
 #' ## Out
 #' ## [1] "EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
+#' @import plyr
+#' @importFrom dplyr %>%
+#' @import stringr
 NULL
 
 #' @export
@@ -108,7 +117,7 @@ codenameTounimod <- function( mod_seq, out='sequence'){
   }
   ## Get Modifications
   ## Need to make this more robust, somehow
-  modification_labels <- regmatches(mod_seq, gregexpr("\\(\\w+\\)|\\(Label:13C\\(\\d+\\)15N\\(\\d+\\)\\)", mod_seq))[[1]]
+  modification_labels <- base::regmatches(mod_seq, gregexpr("\\(\\w+\\)|\\(Label:13C\\(\\d+\\)15N\\(\\d+\\)\\)", mod_seq))[[1]]
   ## Check if there were any modifications
   if ( length(modification_labels) >= 1 ){
     ## convert query UniMod IDs to modification code name

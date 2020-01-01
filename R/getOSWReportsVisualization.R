@@ -23,6 +23,7 @@ osw_reports_visualization <- new.env()
 #' @param position A character vector indicating how groupings should be plot. (Default: 'dodge2') See ggplot2:geom_histogram
 #' @inheritParams ggplot2::geom_histogram
 #' @name d_score_hist
+#' @import ggplot2
 NULL
 
 #' @rdname d_score_hist

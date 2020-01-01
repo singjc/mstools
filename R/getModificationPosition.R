@@ -18,7 +18,6 @@
 #' @return A numeric value for modification position
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
-#' 
 getModificationPosition_ <- function( mod_seq, character_index=F ){ 
   DEBUG = F
   if ( DEBUG ){
@@ -32,7 +31,7 @@ getModificationPosition_ <- function( mod_seq, character_index=F ){
   mod_seq <- gsub('\\(Label:13C\\(\\d+\\)15N\\(\\d+\\)\\)', '', mod_seq)
   
   if (character_index==F){
-    modification_labels <- regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
+    modification_labels <- base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
     naked_peptide <- gsub( paste(gsub('\\)','\\\\)',gsub('\\(','\\\\(',modification_labels)), collapse = '|'), '', mod_seq )
     
     modification_index_list <- list()

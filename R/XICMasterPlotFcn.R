@@ -14,20 +14,22 @@
 #' @param dup_peps A character vector of a peptide sequence
 #' @return A ggplot-grobs table of a XIC
 #' 
+#' @author Justin Sing \url{https://github.com/singjc}
 #' @import tictoc
 #' @import crayon
 #' @import parallel
 #' @import ggplot2
-#' 
-#' @author Justin Sing \url{https://github.com/singjc}
+#' @import dplyr
+#' @importFrom dplyr %>%
+#' @import stringr
 XICMasterPlotFcn_ <- function( dup_peps, 
                                uni_mod=NULL, 
                                sqMass_files,  in_lib, in_osw, 
                                plotPrecursor=T,
                                plotIntersectingDetecting=T,
-                               plotUniqueDetecting=T,
-                               plotIdentifying=T,
-                               plotIdentifying.Unique=T,
+                               plotUniqueDetecting=F,
+                               plotIdentifying=F,
+                               plotIdentifying.Unique=F,
                                plotIdentifying.Shared=F,
                                plotIdentifying.Against=F,
                                smooth_chromatogram=list(p = 4, n = 9), 
@@ -43,6 +45,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                use_top_trans_pep=F,
                                show_n_transitions=NULL,
                                show_all_pkgrprnk=T,
+                               show_manual_annotation=NULL,
                                show_legend=T,
                                verbosity=0){
   
@@ -62,8 +65,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
     # for ( file_idx in seq(1,length(sqMass_files),1) ){
     record_list <- parallel::mclapply( seq(1,length(sqMass_files),1), function(file_idx){
       in_sqMass <- sqMass_files[file_idx]
-      run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$', '', basename(in_sqMass))
-      run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
+      run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$|[.]chrom.sqMass$', '', basename(in_sqMass))
+      run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz|[.]chrom[.]sqMass)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
       
       cat(crayon::blue('@ Run: ', run),'\n', sep='')
       
@@ -365,6 +368,9 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     doFacetZoom=F, 
                                     top_trans_mod_list=NULL, 
                                     show_n_transitions=show_n_transitions, 
+                                    plotIdentifying.Unique=plotIdentifying.Unique, 
+                                    plotIdentifying.Shared=plotIdentifying.Shared, 
+                                    plotIdentifying.Against=plotIdentifying.Against,
                                     verbosity=verbosity )
               max_Int <- g$max_Int
               g <- g$graphic_obj
@@ -383,11 +389,10 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                   chromatogram_file = in_sqMass, 
                                   transition_type='none', 
                                   uni_mod_list = uni_mod_list, 
-                                  max_Int = max_int, 
+                                  max_Int = max_Int, 
                                   in_osw = in_osw, 
                                   doFacetZoom=doFacetZoom, 
                                   top_trans_mod_list=NULL, 
-                                  Isoform_Target_Charge=Isoform_Target_Charge, 
                                   RT_pkgrps=RT_pkgrps, 
                                   show_manual_annotation=show_manual_annotation, 
                                   FacetFcnCall=FacetFcnCall, 
@@ -401,6 +406,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
           graphics.off()
           final_g <- (arrangeGrob(grobs=plot_list, nrow=length(uni_mod)))
           final_g_list[[uni_isoform_group_list_idx]] <- final_g
+          final_g_list <- plot_list # TODO: Check if this is right 
           # grid.draw(final_g)
           
         } # uni_isoform_group_list_idx

@@ -18,6 +18,7 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import ggplot2
 pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
   DEBUG=FALSE
   if ( length(x) >2 ){

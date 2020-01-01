@@ -21,6 +21,9 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import crayon
+#' @import dplyr
+#' @importFrom dplyr %>%
 catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_filter=0.05, report_top_single_result=T, run_sub_expression=NULL, ... ){
   
   DEBUG=F

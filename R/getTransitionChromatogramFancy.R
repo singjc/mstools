@@ -43,14 +43,14 @@ getXIC_ <- function( graphic_obj,
   }
   ## Filter library data for specific information on transition type selected
   if ( transition_type=='precursor' ){
-    cat( Verbose(threshold = verbosity), '--> Extracting Precursor Transition...\n')
+    cat(  '--> Extracting Precursor Transition...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( TYPE=="" ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge )-> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for precursor transition in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   } else if ( transition_type=='detecting_intersection' ){
-    cat( Verbose(threshold = verbosity), '--> Extracting Intersecting Detecting Transitions...\n')
+    cat(  '--> Extracting Intersecting Detecting Transitions...\n')
     if ( !is.null( intersecting_mz ) ){
       df_lib %>%
         dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
@@ -63,20 +63,20 @@ getXIC_ <- function( graphic_obj,
     }
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for common detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   } else if ( transition_type=='detecting_unique' ){
-    cat( Verbose(threshold = verbosity), '--> Extracting Unique Detecting Transitions...\n')
+    cat(  '--> Extracting Unique Detecting Transitions...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( DETECTING==1 ) %>%
       dplyr::filter( !(PRODUCT_MZ %in% intersecting_mz) )-> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for unique detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   } else if ( transition_type=='detecting' ){
-    cat( Verbose(threshold = verbosity), '--> Extracting Unique Detecting Transitions...\n')
+    cat(  '--> Extracting Unique Detecting Transitions...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( DETECTING==1 ) -> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   } else if ( transition_type=='identifying' ){
-    cat( Verbose(threshold = verbosity), '--> Extracting Identifying Transitions...\n')
+    cat(  '--> Extracting Identifying Transitions...\n')
     if ( !(is.null(top_trans_mod_list)) ){
       df_lib %>%
         dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
@@ -95,7 +95,7 @@ getXIC_ <- function( graphic_obj,
   } else {
     ## OSW Information
     if ( !is.null( in_osw ) ){
-      cat( Verbose(threshold = verbosity), '--> Extracting OpenSwathResults Info...\n')
+      cat(  '--> Extracting OpenSwathResults Info...\n')
       df_lib %>%
         dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
         dplyr::filter( DETECTING==1 ) -> df_lib_filtered
@@ -320,7 +320,7 @@ getXIC_ <- function( graphic_obj,
   }
   
   ## Get Transition IDs for chromatogram data extraction
-  cat( Verbose(threshold = verbosity), '----> Getting Transition IDs and Extracting Chromatogram Data...\n')
+  cat(  '----> Getting Transition IDs and Extracting Chromatogram Data...\n')
   frag_ids <- list()
   if( length(as.character( df_lib_filtered$TRANSITION_ID ))>1 ){
     frag_ids[[1]] <- as.character( df_lib_filtered$TRANSITION_ID )
@@ -329,7 +329,7 @@ getXIC_ <- function( graphic_obj,
   }
   chrom <- getChromatogramsbyIndice_( in_sqMass, frag_ids )
   if (smooth_chromatogram==TRUE){
-    cat( Verbose(threshold = verbosity), '----> Smoothing Chromatogram Data...\n')
+    cat(  '----> Smoothing Chromatogram Data...\n')
   }
   ## Smooth Intensity values to make Chromatogram look nice
   for (i in seq(1:length(chrom))){

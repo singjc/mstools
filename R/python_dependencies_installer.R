@@ -1,5 +1,6 @@
 ## Install python dependency
 #' @import reticulate
+#' @import MazamaCoreUtils
 find_python <- function(){
   ## Setup Logging
   mstools:::log_setup()
@@ -17,6 +18,7 @@ find_python <- function(){
 }
 
 #' @import reticulate
+#' @import MazamaCoreUtils
 install_python_dependencies <- function(method = "auto", conda = "auto") {
   
   ## Setup Logging
@@ -34,8 +36,8 @@ install_python_dependencies <- function(method = "auto", conda = "auto") {
   cython_available=FALSE
   sqlite3_available=FALSE
   pandas_available=FALSE
-  if ( !reticulate::py_module_available("PyMSNumpress") | !pymsnumpress_available ){
-    if ( !reticulate::py_module_available("cython") | !cython_available ){
+  if ( !reticulate::py_module_available("PyMSNumpress") ){
+    if ( !reticulate::py_module_available("cython") ){
       MazamaCoreUtils::logger.info( "** -> Installing Python Module: cython" )
       reticulate::py_install( "cython", pip=TRUE )
     }
@@ -43,18 +45,19 @@ install_python_dependencies <- function(method = "auto", conda = "auto") {
     reticulate::py_install( "PyMSNumpress", pip=TRUE )
     pymsnumpress_available=TRUE
   }
-  if ( !reticulate::py_module_available("sqlite3") | !sqlite3_available ){
+  if ( !reticulate::py_module_available("sqlite3") ){
     reticulate::py_install("sqlite3")
-    MazamaCoreUtils::logger.info( "** -> Installing Python Module: sqlite3" ) 
+    MazamaCoreUtils::logger.info( "** -> Installing Python Module: sqlite3", pip=TRUE ) 
     sqlite3_available=TRUE
   }
-  if ( !reticulate::py_module_available("pandas") | !pandas_available ){
+  if ( !reticulate::py_module_available("pandas") ){
     reticulate::py_install("pandas")
-    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pandas" )
+    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pandas", pip=TRUE )
     pandas_available=TRUE
   }
 }
 
+#' @import reticulate
 python_dummy_modules <- function() {
   # Load the module and create dummy objects from it, all of which are NULL
   pymsnumpress <- reticulate::import( "PyMSNumpress", delay_load = FALSE, convert = FALSE )

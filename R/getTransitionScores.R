@@ -21,15 +21,19 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import DBI
+#' @import RSQLite
+#' @import dplyr
+#' @import dbplyr
 getTransitionScores_ <- function ( oswfile,
 run_name,
 precursor_id='',
 peptide_id=''
 ) {
 
-# Load Required Libraries
-library(dplyr)
-library(dbplyr)
+# # Load Required Libraries
+# library(dplyr)
+# library(dbplyr)
 
 # Connect to database
 osw_db <- DBI::dbConnect( RSQLite::SQLite(), oswfile )
@@ -88,7 +92,7 @@ ORDER BY transition_group_id,
          transition_rank;", peptide_query, precursor_query, run_id_query )
     
 # Query Database
-df_osw <- collect( tbl(osw_db, sql( stmt )) )
+df_osw <- dplyr::collect( dplyr::tbl(osw_db, dbplyr::sql( stmt )) )
 
 # Disconnect form database
 DBI:dbDisconnect( osw_db )

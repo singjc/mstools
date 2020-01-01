@@ -24,7 +24,7 @@ drawNakedPeptide_ <- function(df_lib,
                               verbosity=-1, 
                               show_legend = TRUE ){
   
-  cat( Verbose(threshold = verbosity), green('   --- Peptidoform: ', mod), '\n', sep='')
+  cat( green('   --- Peptidoform: ', mod), '\n', sep='' )
   
   # Load OSW Merged df
   osw_df <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )

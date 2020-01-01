@@ -18,10 +18,10 @@
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
 #' @import dplyr
+#' @importFrom dplyr %>%
 #' @import dbplyr
 #' @import RSQLite
 #' @import DBI
-#' 
 getRunID_ <- function( oswfile, run_name ){
   
   DEBUG=F

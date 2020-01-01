@@ -17,6 +17,10 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import DBI
+#' @import RSQLite
+#' @import dbplyr
+#' @import dplyr
 getPepLibData_ <- function( libfile, peptide_id = ''){
   # Connect to database
   lib_db <- DBI::dbConnect( RSQLite::SQLite(), libfile )

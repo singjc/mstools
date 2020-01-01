@@ -17,6 +17,12 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @importFrom tools file_ext
+#' @import MazamaCoreUtils
+#' @import DBI
+#' @import RSQLite
+#' @import dplyr
+#' @import dbplyr
 filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter) {
   ## TODO add controls tatements for check tables being present
   DEBUG=FALSE

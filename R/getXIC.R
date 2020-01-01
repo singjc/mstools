@@ -25,12 +25,18 @@
 #' @param top_trans_mod_list A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities.
 #' @param RT_pkgrps A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
-#' 
-#' @import ggplot2
-#' @import data.table
 #'
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import ggplot2
+#' @import gridExtra
+#' @import ggpubr
+#' @import data.table
+#' @import dplyr
+#' @importFrom dplyr %>%
+#' @import tibble
+#' @import rlang
+#' @import signal
 getXIC <- function( graphic_obj=ggplot2::ggplot(), 
                     mod, 
                     df_lib, 
@@ -135,7 +141,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       dplyr::filter( DETECTING==1 ) -> df_lib_filtered
     
     ## @TODO: Need to make this more robust for other file formats or naming conventions
-    run_name <- gsub('_osw_chrom[.]sqMass$', '', basename(chromatogram_file))
+    run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$|[.]chrom.sqMass$', '', basename(chromatogram_file))
     ## @TODO: Maybe remove this or leave the whole filename. This is very specific for 3 datasets..
     run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
     ## Replace UniMod name with actual modification name
@@ -493,7 +499,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         ),
         ion_series_end = ifelse( modification_position=='most_right' &  target_peptide, 
                                  dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod ), 
-                                 dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )
+                                 min( dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod ) )
                                  
         ),
         use_ion_series = ifelse( modification_position=='most_right', 'y', 'b')
@@ -632,19 +638,23 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     } else {
       #### Unique Identifying Transitions
       if ( plotIdentifying.Unique==TRUE ){
+        ion_series_start <- peptides_information_df$ion_series_start[peptides_information_df$target_peptide]
+        ion_series_end <- peptides_information_df$ion_series_end[peptides_information_df$target_peptide]
+        seq_from <- min(c(ion_series_start, ion_series_end))
+        seq_to <- max(c(ion_series_start, ion_series_end))
         df_plot %>%
           dplyr::filter( 
             grepl( glob2rx( paste( paste0( peptides_information_df$use_ion_series[peptides_information_df$target_peptide], 
-                                    base::seq(
-                                      from=peptides_information_df$ion_series_end[peptides_information_df$target_peptide], 
-                                      to=peptides_information_df$ion_series_start[peptides_information_df$target_peptide], 
-                                      by=ifelse(peptides_information_df$use_ion_series[peptides_information_df$target_peptide]=='y',-1,1) 
-                                      )  
-                                    ), collapse = '|' ) 
-                          ), gsub('.*\\{[a-zA-Z0-9\\|\\(\\)]+\\}_\\d+.\\d+_\\d+.\\d+_-\\d+.\\d+_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID) 
-              
+                                           base::seq(
+                                             from=seq_from, 
+                                             to=seq_to, 
+                                             by=1 
+                                           )  
+            ), collapse = '|' ) 
+            ), gsub('.*\\{[a-zA-Z0-9\\|\\(\\)]+\\}_\\d+.\\d+_\\d+.\\d+_-\\d+.\\d+_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID) 
+            
             )
-            ) -> tmp_plot
+          ) -> tmp_plot
         
         
         # mods_present <- names(uni_mod_list)
