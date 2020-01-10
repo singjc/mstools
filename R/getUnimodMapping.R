@@ -123,10 +123,13 @@ codenameTounimod <- function( mod_seq, out='sequence'){
     ## convert query UniMod IDs to modification code name
     out_code_names <- plyr::mapvalues( gsub('^\\(|\\)$','',modification_labels), from = mstools::unimod_mapping$ex_code_name, to = paste0("UniMod:", mstools::unimod_mapping$record_id), warn_missing = FALSE)
     names(out_code_names) <- gsub('^\\(|\\)$','',modification_labels)
-    ## Convery to code name
+    ## Convert to code name
     mod_seq %>%
       stringr::str_replace_all( out_code_names ) -> converted_mod_seq
+    ## Check if Label is present on the end
+    if ( grepl('\\Label:13C\\(\\d+\\)15N\\(\\d+\\)', converted_mod_seq) ){
     converted_mod_seq <- gsub('\\Label:13C\\(\\d+\\)15N\\(\\d+\\)', out_code_names[grepl('Label.*', names(out_code_names))], converted_mod_seq )
+    }
   } else {
     out_code_names <- NULL
     converted_mod_seq <- mod_seq

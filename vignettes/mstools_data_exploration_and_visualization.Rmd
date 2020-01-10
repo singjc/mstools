@@ -106,4 +106,5 @@ out.plot.h
 #                                     '</sup>')))
 ```
 The manual annotation is identified by the shaded blue region
+<br/>
 ![](./imgs/sqMass_Chromatogram_Output.png)

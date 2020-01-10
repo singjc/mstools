@@ -61,7 +61,9 @@ getXIC(
 
 \item{msg}{error message to return}
 
-\item{numeric_obj}{Check if an numeric object is not NULL a}
+\item{numeric_obj}{Check if an numeric object is not NULL}
+
+\item{signif.not}{Return significant notation}
 }
 \value{
 A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity

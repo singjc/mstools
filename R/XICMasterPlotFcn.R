@@ -33,12 +33,12 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                plotIdentifying.Shared=F,
                                plotIdentifying.Against=F,
                                smooth_chromatogram=list(p = 4, n = 9), 
-                               doFacetZoom=T,
+                               doFacetZoom=F,
                                FacetFcnCall=NULL,
                                doPlot=T,
                                RT_padding=100,
                                Charge_State=NULL,
-                               N_sample=2,
+                               N_sample=1,
                                idx_draw_these=NULL,
                                store_plots_subdir = '/Results/',
                                printPlot=F,
@@ -54,6 +54,38 @@ XICMasterPlotFcn_ <- function( dup_peps,
   
   # verbose <- Verbose(threshold = 0)
   # cat(verbose, red('bleh'))
+  
+  if ( F ){
+    file_idx <- 1
+    dup_peps <- "SQGGDGYYGR"
+    pep <- dup_peps
+    uni_mod <- "SQGGDGYY(UniMod:21)GR"
+    Charge_State <- 2
+    sqMass_files <-  "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/sqMass/lgillet_L160915_014-Manchester_dirty_phospho_-_Pool_U7_-_SW.mzML.gz_osw_chrom.sqMass"
+    in_lib <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/lib/ConsLib_5600_dpp_UK_peakview_curated_optimized_decoys.pqp"
+    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
+    plotPrecursor=T;
+    plotIntersectingDetecting=T;
+    plotUniqueDetecting=F;
+    plotIdentifying=T;
+    plotIdentifying.Unique=T;
+    plotIdentifying.Shared=F;
+    plotIdentifying.Against=F;
+    smooth_chromatogram=list(p = 4, n = 9) 
+    doFacetZoom=T
+    FacetFcnCall=NULL
+    doPlot=T
+    RT_padding=100
+    N_sample=1
+    idx_draw_these=NULL
+    store_plots_subdir = '/Results/'
+    printPlot=F
+    use_top_trans_pep=F
+    show_n_transitions=NULL
+    show_all_pkgrprnk=T
+    show_manual_annotation=NULL
+    show_legend=T
+  }
   
   tictoc::tic( paste('XIC plotting for ', length(dup_peps), ' peptides took: ', sep=' '))
   pep_counter = 0
@@ -113,10 +145,6 @@ XICMasterPlotFcn_ <- function( dup_peps,
         current_uni_mod_charges <- as.numeric(gsub('.*_', '', desired_uni_mods))
         # if ( length(current_uni_mod_charges)==2 & (current_uni_mod_charges[1]!=current_uni_mod_charges[2]) ){ cat(crayon::red('The two isoforms for:', underline(pep), 'are of different precursor charge. Skipping...\n'), sep=' '); return(list()) }
         
-        # Filter df_lib based on only the uni modifications with specified charge state found in OSW results
-        df_lib %>%
-          dplyr::filter( PRECURSOR_CHARGE==mstools::Mode(current_uni_mod_charges) ) -> df_lib
-        
         # Get a list of unique modifications
         #### @TODO: make this more versatile for cases with more than 2 isoforms
         if (is.null(uni_mod)){
@@ -175,6 +203,10 @@ XICMasterPlotFcn_ <- function( dup_peps,
             }
             cat('* Will analyze peptidoform with charge state: ', (Isoform_Target_Charge), '\n', sep='')
           }
+          
+          # Filter df_lib based on only the uni modifications with specified charge state found in OSW results
+          df_lib %>%
+            dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) -> df_lib
           
           cat('Peptidoforms of Charge State ', Isoform_Target_Charge, ' to Analyze..\n', paste(uni_mod, collapse = '\n'), '\n', sep='')
           if ( length(uni_mod)==1 & N_sample!=1 ){ cat(crayon::red('There is only 1 form... Skipping...\n')); skipped_bool=TRUE; next }
@@ -333,7 +365,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
               g <- g$graphic_obj
             }
             ## UNIQUE
-            if (plotUniqueDetecting==T ){
+            if ( plotUniqueDetecting==T ){
               g <- mstools::getXIC( graphic_obj = g, 
                                     df_lib = df_lib, 
                                     mod = mod, 
@@ -354,8 +386,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
             ###################################
             ##    IDENTIFYING TRANSITIONS   ###
             ###################################
-            if (plotIdentifying==T){
-              g <-mstools:: getXIC( graphic_obj = g, 
+            if ( plotIdentifying==T ){
+              g <- mstools:: getXIC( graphic_obj = g, 
                                     df_lib = df_lib, 
                                     mod = mod, 
                                     Isoform_Target_Charge = Isoform_Target_Charge,
@@ -404,7 +436,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             plot_list[[mod]] <- g
           } 
           graphics.off()
-          final_g <- (arrangeGrob(grobs=plot_list, nrow=length(uni_mod)))
+          final_g <- (gridExtra::arrangeGrob(grobs=plot_list, nrow=length(uni_mod)))
           final_g_list[[uni_isoform_group_list_idx]] <- final_g
           final_g_list <- plot_list # TODO: Check if this is right 
           # grid.draw(final_g)
@@ -450,7 +482,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                 ## There could be multiple isoform groups for 1 peptide in 1 run
                 for ( sub_record_idx in seq(1,length(record_list[[grph_idx]]),1) ){
                   # print('list draw')
-                  grid.draw(record_list[[grph_idx]][[sub_record_idx]])
+                  grid::grid.draw(record_list[[grph_idx]][[sub_record_idx]])
                   store_record[[store_idx]] <- recordPlot()
                   store_idx <- store_idx + 1
                   graphics.off()
@@ -458,7 +490,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
               } else {
                 # cat( 'else eval( length(record_list[[grph_idx]])>1 ) -> ', length(record_list[[grph_idx]])>1, '\n', sep='')
                 # print('no list draw')
-                grid.draw(record_list[[grph_idx]][[1]])
+                grid::grid.draw(record_list[[grph_idx]][[1]])
                 store_record[[store_idx]] <- recordPlot()
                 store_idx <- store_idx + 1
                 graphics.off()
@@ -468,6 +500,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
           
           ## Check to see if save directory exits
           dir.create(file.path(getwd(), store_plots_subdir), showWarnings = FALSE )
+          
+          message( sprintf("Plots will be saved in: %s", file.path(getwd(), store_plots_subdir)) )
           
           # write and Append plots to a pdf file
           datatime_log <- sub(':', 'm', sub(':', 'h', gsub(' ', '_', as.character(as.POSIXct(Sys.time())))))

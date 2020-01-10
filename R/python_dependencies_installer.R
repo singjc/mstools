@@ -46,13 +46,13 @@ install_python_dependencies <- function(method = "auto", conda = "auto") {
     pymsnumpress_available=TRUE
   }
   if ( !reticulate::py_module_available("sqlite3") ){
-    reticulate::py_install("sqlite3")
-    MazamaCoreUtils::logger.info( "** -> Installing Python Module: sqlite3", pip=TRUE ) 
+    MazamaCoreUtils::logger.info( "** -> Installing Python Module: sqlite3" ) 
+    reticulate::py_install("sqlite3", pip=TRUE )
     sqlite3_available=TRUE
   }
   if ( !reticulate::py_module_available("pandas") ){
-    reticulate::py_install("pandas")
-    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pandas", pip=TRUE )
+    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pandas" )
+    reticulate::py_install("pandas", pip=TRUE )
     pandas_available=TRUE
   }
 }
