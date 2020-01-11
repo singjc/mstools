@@ -34,7 +34,7 @@ filterPQPdb <- function( pqp_file, unmodified_sequence_filter) {
   ## Setup Logging
   mstools:::log_setup()
   ## Get and Evaluate File Extension Type to ensure an osw file was supplied
-  fileType <- tools::file_ext(osw_file)
+  fileType <- tools::file_ext(pqp_file)
   if( tolower(fileType)!='pqp' ){
     MazamaCoreUtils::logger.error( "The supplied file was not a valid OSW database file!\n You provided a file of type: %s", fileType)
   }
