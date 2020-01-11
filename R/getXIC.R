@@ -24,6 +24,12 @@
 #' @param FacetFcnCall A personalized function call to Facet_Zoom. I.e. FacetFcnCall = facet_zoom(xlim = c(3950, 4050), ylim = c(0, 10000)). (Default: NULL)
 #' @param top_trans_mod_list A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities.
 #' @param RT_pkgrps A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)
+#' @param show_manual_annotation a dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)
+#' @param plotIdentifying.Unique A logical value. TRUE will plot unique identifying transitions. (Default: NULL)
+#' @param plotIdentifying.Shared A logical value. TRUE will plot shared identifying transitions. (Default: NULL)
+#' @param plotIdentifying.Against A logical value. TRUE will plot against identifying transitions. (Default: NULL)
+#' @param show_n_transitions A numeric value indicating the number of transitions to draw. (Default: NULL, default is 6 transitions)
+#' @param show_legend A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #'
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -56,8 +62,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     plotIdentifying.Shared=NULL, 
                     plotIdentifying.Against=NULL,
                     show_n_transitions=NULL,
-                    show_legend=T,
-                    verbosity=0
+                    show_legend=T
 ){
   
   # filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/mzML_Chroms_Decomp/chludwig_K150309_013_SW_0_osw_chrom.mzML"
@@ -72,7 +77,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   #' @return if data.frame has 0 rows, return true, otherwise return false
   checkDataframe <- function( df, return_item, msg ){
     if ( dim(df)[1]==0 ){
-      cat(bold(red(msg)))
+      cat(crayon::bold(crayon::red(msg)))
       print(df)
       return( TRUE )
     } else {
@@ -82,11 +87,16 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   
   #' @description  Check numeric values if not NULL
   #' 
-  #' @param numeric_obj Check if an numeric object is not NULL a
+  #' @param numeric_obj Check if an numeric object is not NULL 
+  #' @param  signif.not Return significant notation
   #' @return If numeric object is not null, round numeric object to 4 digits
-  checkNumeric <- function( numeric_obj ){
-    if( !is.null( numeric_obj )){
+  checkNumeric <- function( numeric_obj, signif.not=TRUE ){
+    if( !is.null( numeric_obj ) ){
+      if ( signif.not==FALSE ){
       return( signif(numeric_obj, digits = 4) )
+        } else {
+      return( formatC(numeric_obj, format = "e", digits = 3) )
+      }
     } else {
       return( NULL )
     }
@@ -187,7 +197,12 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
       ## Get data for the best peak as defined by the feature with the lowest IPF posterior error probability 
       osw_df %>%
-        dplyr::filter( ipf_pep==min(ipf_pep) ) -> osw_df_filtered #### No longer filter by peak group
+        dplyr::filter( m_score==min(m_score) ) -> osw_df_filtered #### No longer filter by peak group
+      
+      if ( dim(osw_df_filtered) > 1 ){
+        osw_df_filtered %>%
+          dplyr::filter( peak_group_rank==min(peak_group_rank) ) -> osw_df_filtered
+      }
     } else {
       ## Get data for the best peak as defined by peak_group_rank == 1
       osw_df %>%
@@ -197,7 +212,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
     ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
     ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
-    ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]] )
+    ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]], signif.not=F )
     ##****************************************************
     ## Append OSW information to Chromatogram ggplot.
     ##****************************************************
@@ -225,7 +240,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ##*************************************
     if( !is.null(RT_pkgrps) ){
       ## Get OSW data for other potential peaks/features
-      osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
+      osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
       ## Filter out the top best feature  
       osw_RT_pkgrps %>%
         dplyr::filter( RT %in% RT_pkgrps ) %>%
@@ -233,7 +248,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, ipf_pep, m_score ) -> osw_RT_pkgrps_filtered
       if ( dim(osw_RT_pkgrps_filtered)[1]!=0 ){
         # Define unique set of colors to annotate different peak rank groups
-        jBrewColors <- brewer.pal(n = dim(osw_RT_pkgrps_filtered)[1], name = "Dark2")
+        jBrewColors <- RColorBrewer::brewer.pal(n = dim(osw_RT_pkgrps_filtered)[1], name = "Dark2")
         # Y intcrements
         y_increment = 0
         for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
@@ -255,7 +270,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           graphic_obj <- graphic_obj +
             geom_vline(xintercept = osw_RT_pkgrps_filtered$RT[RT_idx], color=jBrewColors[RT_idx], alpha=0.65, size = 1.5 ) +
             geom_vline(xintercept = osw_RT_pkgrps_filtered$leftWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
-            geom_vline(xintercept = osw_RT_pkgrps_filtered$rightWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
+            geom_vline(xintercept = osw_RT_pkgrps_filtered$rightWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) 
             # geom_rect( aes(xmin=osw_RT_pkgrps_filtered$leftWidth[RT_idx], xmax=osw_RT_pkgrps_filtered$rightWidth[RT_idx], ymin=0, ymax=Inf), col=jBrewColors[RT_idx], fill=jBrewColors[RT_idx], alpha=0.5) +
             # geom_label(data=point_dataframe, aes(x=RT, y=y,label=label), alpha=0.7, fill=jBrewColors[RT_idx], size=3)
             y_increment = y_increment + 500
@@ -280,7 +295,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         # Make tableGrob object with annotation information                                                                                              
         # and get height of table                                                                                                                         
         #*****************************************************                                                                                           
-        annotationGrob <- tableGrob(master_annotation_table, theme = theme_col, row = NULL)                                                             
+        annotationGrob <- gridExtra::tableGrob(master_annotation_table, theme = theme_col, row = NULL)                                                             
         th <- sum(annotationGrob$heights)
         
       }
@@ -312,7 +327,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         if ( max(max_Int) > 1000 ){
           graphic_obj <- graphic_obj +
             # facet_zoom(ylim = c(0, (1000) ))
-            facet_zoom(ylim = c(0, (max(max_Int)/ 4 ) ))
+            ggforce::facet_zoom(ylim = c(0, (max(max_Int)/ 4 ) ))
           # facet_zoom(ylim = c(0, (max(max_Int)/ (max(max_Int)-mean(max_Int)) ) ))
         }
       }
@@ -349,7 +364,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     }
     
     if ( exists("annotationGrob") ){                                                                                                                    
-      graphic_obj <- ggpubr::as_ggplot( arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = unit.c(unit(1, "null"), th )) )                    
+      graphic_obj <- ggpubr::as_ggplot( gridExtra::arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = grid::unit.c(unit(1, "null"), th )) )                    
     }    
     return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
   } 
@@ -384,7 +399,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     }
   }
   ## Combine list of Intensity dataframs and Retention Time dataframes into one Dataframe mapping by Transition ID 
-  df_plot <- bind_rows(mclapply(chrom, data.frame), .id='Transition')
+  df_plot <- dplyr::bind_rows(parallel::mclapply(chrom, data.frame), .id='Transition')
   ## Append Transition information to Int-RT dataframe, filter for precursor transition or MS2 transitions 
   if ( transition_type=='precursor' ){
     ## Extraction Transtion Information
@@ -499,15 +514,27 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         ),
         ion_series_end = ifelse( modification_position=='most_right' &  target_peptide, 
                                  dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod ), 
-                                 min( dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod ) )
+                                 dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )
                                  
         ),
         use_ion_series = ifelse( modification_position=='most_right', 'y', 'b')
         
         
       ) -> peptides_information_df
-    class(peptides_information_df$ion_series_start) <- "numeric"
-    class(peptides_information_df$ion_series_end) <- "numeric"
+    
+    
+    peptides_information_df %>%
+      dplyr::mutate( 
+        
+        ion_series_start_final = ifelse( length(ion_series_start)>1 & use_ion_series=='y', max(unlist(ion_series_start)), min(unlist(ion_series_start)) 
+                                         ),
+        ion_series_end_final = ifelse( length(ion_series_end)>1 & use_ion_series=='y', max(unlist(ion_series_end)), min(unlist(ion_series_end)) 
+          )
+        
+        ) -> peptides_information_df
+    
+    class(peptides_information_df$ion_series_start_final) <- "numeric"
+    class(peptides_information_df$ion_series_end_final) <- "numeric"
     
 
     ## @TODO: Will need a better way to do this
@@ -638,8 +665,17 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     } else {
       #### Unique Identifying Transitions
       if ( plotIdentifying.Unique==TRUE ){
-        ion_series_start <- peptides_information_df$ion_series_start[peptides_information_df$target_peptide]
-        ion_series_end <- peptides_information_df$ion_series_end[peptides_information_df$target_peptide]
+        if( F ) {
+          unique(df_plot$TRAML_ID)[!grepl(".*\\|.*", unique(df_plot$TRAML_ID))]
+        }
+        
+        ion_series_start <- peptides_information_df$ion_series_start_final[peptides_information_df$target_peptide]
+        ion_series_end <- peptides_information_df$ion_series_end_final[peptides_information_df$target_peptide]
+        ## Check which ion series
+        if ( peptides_information_df$use_ion_series[ peptides_information_df$target_peptide ]=='y' ){
+          ion_series_start <- peptides_information_df$naked_peptide_length[ peptides_information_df$target_peptide ] - ion_series_start + 1
+          ion_series_end <- peptides_information_df$naked_peptide_length[ peptides_information_df$target_peptide ] - ion_series_end + 1
+        }
         seq_from <- min(c(ion_series_start, ion_series_end))
         seq_to <- max(c(ion_series_start, ion_series_end))
         df_plot %>%
@@ -651,7 +687,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                                              by=1 
                                            )  
             ), collapse = '|' ) 
-            ), gsub('.*\\{[a-zA-Z0-9\\|\\(\\)]+\\}_\\d+.\\d+_\\d+.\\d+_-\\d+.\\d+_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID) 
+            ), gsub('.*\\{.*}_\\d+.\\d+_\\d+.\\d+_-\\d+.*_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID) 
             
             )
           ) -> tmp_plot
@@ -724,7 +760,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         if ( dim(tmp_plot)[1] > 0){
           
           graphic_obj <- graphic_obj + 
-            geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) +
+            ggplot2::geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) +
             guides(col=guide_legend(title="Identifying"))  #+ 
           # theme(legend.text = element_text(size = 2),
           #       legend.key.size = unit(0.5, "cm"))

@@ -11,8 +11,6 @@ drawNakedPeptide_ <- function(df_lib,
                               plotIdentifying.Against=NULL,
                               intersecting_mz=NULL, 
                               uni_mod_list=NULL, 
-                              max_RT, 
-                              min_RT, 
                               max_Int, 
                               in_osw, 
                               smooth_chromatogram=NULL, 
@@ -21,7 +19,6 @@ drawNakedPeptide_ <- function(df_lib,
                               show_all_pkgrprnk=F, 
                               show_n_transitions=6,
                               FacetFcnCall=NULL, 
-                              verbosity=-1, 
                               show_legend = TRUE ){
   
   cat( green('   --- Peptidoform: ', mod), '\n', sep='' )
@@ -70,7 +67,7 @@ drawNakedPeptide_ <- function(df_lib,
   if ( plotPrecursor==T ){
     
     g <- ggplot()
-    g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='precursor', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge, verbosity=verbosity )
+    g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='precursor', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge )
     max_Int <- g$max_Int
     g <- g$graphic_obj
   } else {
@@ -82,7 +79,7 @@ drawNakedPeptide_ <- function(df_lib,
   #################################
   
   if ( plotIntersectingDetecting==T |  plotUniqueDetecting==T ){
-    g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='detecting', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, show_n_transitions=show_n_transitions, verbosity=verbosity )
+    g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='detecting', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, show_n_transitions=show_n_transitions )
     max_Int <- g$max_Int
     g <- g$graphic_obj
   }
@@ -91,7 +88,7 @@ drawNakedPeptide_ <- function(df_lib,
   ##    IDENTIFYING TRANSITIONS   ###
   ###################################
   if (plotIdentifying==T){
-    g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='identifying', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, show_n_transitions=show_n_transitions, show_legend=show_legend, verbosity=verbosity )
+    g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='identifying', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw=NULL, smooth_chromatogram=smooth_chromatogram, doFacetZoom=F, top_trans_mod_list=NULL, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, show_n_transitions=show_n_transitions, show_legend=show_legend )
     max_Int <- g$max_Int
     g <- g$graphic_obj
   } else {
@@ -101,7 +98,7 @@ drawNakedPeptide_ <- function(df_lib,
   ###################################
   ##     ADD OSW RESULTS INFO     ###
   ###################################
-  g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='none', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge, RT_pkgrps=RT_pkgrps, FacetFcnCall=FacetFcnCall, verbosity=verbosity, show_legend = show_legend  )
+  g <- getXIC_( g, df_lib, mod, in_sqMass, transition_type='none', intersecting_mz=NULL, uni_mod_list, max_RT, min_RT, max_Int, in_osw, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, Isoform_Target_Charge=Isoform_Target_Charge, RT_pkgrps=RT_pkgrps, FacetFcnCall=FacetFcnCall, show_legend = show_legend  )
   max_Int <- g$max_Int
   g <- g$graphic_obj
   

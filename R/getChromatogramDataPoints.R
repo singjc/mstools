@@ -15,6 +15,7 @@
 #' 
 #' @param filename A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)
 #' @param frag_ids A list of a vector containing fragment ids
+#' @param mzPntrs A list object containing cached mzR objects.
 #' @return A list of fragment ids containing 2 arrays for Retention time and Intensity
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -29,9 +30,9 @@
 #' @import DBI
 #' @import reticulate
 #' @import mzR
-getChromatogramDataPoints_ <- function( filename, frag_ids ){
+getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
   ## Setup Logging
-  mstools:::log_setup()
+  log_setup()
   
   ## Get File Extension Type
   fileType <- (tools::file_ext(filename))
@@ -52,10 +53,10 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
     ##*********************************************
     
     if ( !reticulate::py_available()  ){
-      mstools:::find_python()
-      mstools:::install_python_dependencies()
+      find_python()
+      install_python_dependencies()
       MazamaCoreUtils::logger.info( "** Loading Python Modules **")
-      mstools:::.onload()
+      .onload()
     }
     
     ##********************************************
@@ -91,6 +92,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids ){
         - data_type is one of 0 = mz, 1 = int, 2 = rt
         - data contains the raw (blob) data for a single data array
     "
+    MazamaCoreUtils::logger.info( "** saMass: Extracting Chromatogram data from database **")
     stmt <- "SELECT CHROMATOGRAM_ID, COMPRESSION, DATA_TYPE, DATA FROM DATA WHERE CHROMATOGRAM_ID IN ("
     for ( myid in as.matrix(chrom_index_df[,1]) ){
       stmt <- paste( stmt,  myid, ",", sep='' )

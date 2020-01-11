@@ -11,7 +11,33 @@
 #' @title Master Plotting function for plotting XIC's
 #' @description This function can be used to draw XIC's by calling getXIC 
 #' 
-#' @param dup_peps A character vector of a peptide sequence
+#' @param dup_peps A character vector of a peptide sequence(s). 
+#' @param uni_mod A character vector of a modified peptide sequence. (Default: NULL) If using this argument, dup_peps must be a single peptide
+#' @param sqMass_files A list of character vectors. Full paths to chromatogram file(s).
+#' @param in_lib A character vector. Full path to a pqp assay library.
+#' @param in_osw A character vector. Full path to an osw results file.
+#' @param plotPrecursor A logical value. True will plot precursor chromatogram
+#' @param plotIntersectingDetecting A logcail value. True will plot intersecting detecting transitions if comparing two peptidoforms.
+#' @param plotUniqueDetecting A logical value. True will plot unique detecting transitions if comparing two peptidoforms.
+#' @param plotIdentifying A logical value. True will plot identifying transitions.
+#' @param plotIdentifying.Unique A logical value. True will plot unique identifying transitions.
+#' @param plotIdentifying.Shared A logical value. True will plot shared identifying transitions.
+#' @param plotIdentifying.Against A logical value. True will plot against identifying transitions.
+#' @param smooth_chromatogram A list containing p (numeric) for the polynomial order for sgolay, and n (numeric) the bandwidth for sgolay. (Defualt: list(p=4, n=9)
+#' @param doFacetZoom A logical valie. Should the plot be zoomed in. The default zooming operation is based on the max int divided by 4. (Default: FALSE)
+#' @param FacetFcnCall A facet_zoom function with user defined parameters. i.e. FacetFcnCall = facet_zoom(xlim = c(7475, 7620), ylim = c(0, 4000) ). (Default: NULL)
+#' @param doPlot A logical value. TRUE will perform steps to save the plot as a pdf.
+#' @param Charge_State A numeric value. The target charge state. (Default: NULL)
+#' @param N_sample A numeric value. The number of peptidoforms to sample, if more than one. (Default: 1)
+#' @param idx_draw_these A vector of numeric values. The indices for the peptidoforms you wish to exaine.
+#' @param store_plots_subdir A character vector. The location to store plots.
+#' @param printPlot A logical value. TRUE will print plot in RStudio display.
+#' @param use_top_trans_pep A logical value. TRUE will rank the transitions based on the posterior error probabilities.
+#' @param show_n_transitions A numeric value. Show n number of transitions
+#' @param show_all_pkgrprnk A logical value. Show all feature peak-group ranks. Usually 5. (Default: 5)
+#' @param show_manual_annotation A dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)
+#' @param show_legend A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)
+#' 
 #' @return A ggplot-grobs table of a XIC
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -36,7 +62,6 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                doFacetZoom=F,
                                FacetFcnCall=NULL,
                                doPlot=T,
-                               RT_padding=100,
                                Charge_State=NULL,
                                N_sample=1,
                                idx_draw_these=NULL,
@@ -46,8 +71,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                show_n_transitions=NULL,
                                show_all_pkgrprnk=T,
                                show_manual_annotation=NULL,
-                               show_legend=T,
-                               verbosity=0){
+                               show_legend=T
+                               ){
   
   # Get XICs for Modified Peptides  ---------------------------------------------------------------
   # 
@@ -127,14 +152,6 @@ XICMasterPlotFcn_ <- function( dup_peps,
         osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
         if ( dim(osw_df)[1]==0 ){ cat(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep=''); return(list()) }
         
-        # Get Min and Max RT for alignment of x-axis between the two isoforms
-        if ( show_all_pkgrprnk!=T ){
-          min_RT <- min(osw_df$leftWidth) - RT_padding#+70
-          max_RT <- max(osw_df$rightWidth) + RT_padding#-400
-        } else {
-          min_RT <- NULL
-          max_RT <- NULL
-        }
         # Get unique number of modifications
         uni_mod_precursor_id <- unique(paste( df_lib$MODIFIED_SEQUENCE, df_lib$PRECURSOR_ID, df_lib$PRECURSOR_CHARGE, sep='_'))
         
@@ -171,7 +188,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
           } else {
             n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
             n_mod_sites_common <- mstools::Mode(n_mod_sites)
-            if ( length(uni_mod)==1 ){ mod=uni_mod; max_Int=0; return( drawNakedPeptide_(df_lib=df_lib, mod=mod, pep=pep, in_sqMass=in_sqMass, plotPrecursor=plotPrecursor, plotIntersectingDetecting=plotIntersectingDetecting,  plotIdentifying=plotIdentifying, plotUniqueDetecting=plotUniqueDetecting, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, intersecting_mz=NULL, uni_mod_list=NULL, max_RT=max_RT, min_RT=min_RT, max_Int=max_Int, in_osw=in_osw, smooth_chromatogram=smooth_chromatogram, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, show_all_pkgrprnk=show_all_pkgrprnk, FacetFcnCall=FacetFcnCall, verbosity=verbosity, show_legend = show_legend ) ) } 
+            if ( length(uni_mod)==1 ){ mod=uni_mod; max_Int=0; return( drawNakedPeptide_(df_lib=df_lib, mod=mod, pep=pep, in_sqMass=in_sqMass, plotPrecursor=plotPrecursor, plotIntersectingDetecting=plotIntersectingDetecting,  plotIdentifying=plotIdentifying, plotUniqueDetecting=plotUniqueDetecting, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, intersecting_mz=NULL, uni_mod_list=NULL, max_Int=max_Int, in_osw=in_osw, smooth_chromatogram=smooth_chromatogram, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, show_all_pkgrprnk=show_all_pkgrprnk, FacetFcnCall=FacetFcnCall, show_legend = show_legend ) ) } 
             if ( length(uni_mod)==1 ){ n_sample=1 } else { n_sample=2 } # @TODO: Need to figure something out for this and the line above...
             if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ cat(crayon::red('These are not isoforms of each other... Skipping... \n')); return(list()) }
             uni_isoform_group_list <- lapply(n_mod_sites_common, function(isoform_group){ sample(uni_mod[grepl(paste('^',isoform_group,'$',sep=''), n_mod_sites)], n_sample) })
@@ -333,8 +350,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     smooth_chromatogram=smooth_chromatogram, 
                                     doFacetZoom=F, 
                                     top_trans_mod_list=NULL, 
-                                    show_n_transitions=show_n_transitions, 
-                                    verbosity=verbosity )
+                                    show_n_transitions=show_n_transitions )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             } else {
@@ -359,8 +375,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     smooth_chromatogram=smooth_chromatogram, 
                                     doFacetZoom=F, 
                                     top_trans_mod_list=NULL, 
-                                    show_n_transitions=show_n_transitions, 
-                                    verbosity=verbosity )
+                                    show_n_transitions=show_n_transitions )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             }
@@ -378,8 +393,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     smooth_chromatogram=smooth_chromatogram, 
                                     doFacetZoom=F, 
                                     top_trans_mod_list=NULL, 
-                                    show_n_transitions=show_n_transitions, 
-                                    verbosity=verbosity )
+                                    show_n_transitions=show_n_transitions )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             }
@@ -402,8 +416,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     show_n_transitions=show_n_transitions, 
                                     plotIdentifying.Unique=plotIdentifying.Unique, 
                                     plotIdentifying.Shared=plotIdentifying.Shared, 
-                                    plotIdentifying.Against=plotIdentifying.Against,
-                                    verbosity=verbosity )
+                                    plotIdentifying.Against=plotIdentifying.Against )
               max_Int <- g$max_Int
               g <- g$graphic_obj
               
@@ -428,7 +441,6 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                   RT_pkgrps=RT_pkgrps, 
                                   show_manual_annotation=show_manual_annotation, 
                                   FacetFcnCall=FacetFcnCall, 
-                                  verbosity=verbosity, 
                                   show_legend = show_legend  )
             max_Int <- g$max_Int
             g <- g$graphic_obj

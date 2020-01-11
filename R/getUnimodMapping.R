@@ -47,6 +47,8 @@ generateUniModMapping_ <- function( unimod_xml=NULL ){
 #' @title Conversion from UniMod ID to modification name
 #' @usage unimodTocodename( mod_seq, out='sequence' )
 #' @param mod_seq A character vector containing of a peptide sequence, containing UniMod IDs to be converted to code names
+#' @param out A character vector. Default: 'sequence' will return mod_seq with covnerted unimod to codename. Otherwise, will return converted codename
+#' @return A character vector. Returned mod_seq with converted codename or returned codename
 #' @name unimodTocodename
 #' @examples 
 #' mod_seq <- "EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
@@ -94,6 +96,8 @@ unimodTocodename <- function( mod_seq, out='sequence'){
 #' @title Conversion from modification codename to UniMod ID
 #' @usage codenameTounimod( mod_seq, out='sequence' )
 #' @param mod_seq A character vector containing of a peptide sequence, containing modification code names to be converted to UniMod IDs
+#' @param out A character vector. Default: 'sequence' will return mod_seq with covnerted codename to unimod. Otherwise, will return converted unimod
+#' @return A character vector. Returned mod_seq with converted unimod or returned unimod
 #' @name codenameTounimod 
 #' @examples 
 #' mod_seq <- "EGHAQNPM(Oxidation)EPS(Phospho)VPQLS(Phospho)LM(Oxidation)DVK"

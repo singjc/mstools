@@ -41,7 +41,7 @@ osw_db <- DBI::dbConnect( RSQLite::SQLite(), oswfile )
 # Add to query statement for extracting data for a specific run, using run id.
 if ( run_name != '' ){
 	run_id_df = getRunID_( oswfile, run_name )
-	run_id_query = sprintf( "INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID AND FEATURE.RUN_ID=(%s)", df$ID )
+	run_id_query = sprintf( "INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID AND FEATURE.RUN_ID=(%s)", run_id_df$ID )
 } else {
 	run_id_query = 'INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID'
 }

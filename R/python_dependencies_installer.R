@@ -3,7 +3,7 @@
 #' @import MazamaCoreUtils
 find_python <- function(){
   ## Setup Logging
-  mstools:::log_setup()
+  log_setup()
   
   MazamaCoreUtils::logger.info(  "** Finding Python **"  )
   # "/home/justincsing/anaconda3/envs/mstools_test/"
@@ -22,7 +22,7 @@ find_python <- function(){
 install_python_dependencies <- function(method = "auto", conda = "auto") {
   
   ## Setup Logging
-  mstools:::log_setup()
+  log_setup()
   MazamaCoreUtils::logger.info( "** Checking for Required Python Modules ** ")
   
   ## Check for available versions of python
