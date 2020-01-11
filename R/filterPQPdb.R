@@ -31,13 +31,13 @@ filterPQPdb <- function( pqp_file, unmodified_sequence_filter) {
     unmodified_sequence_filter <- c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')
   }
   
-  ## Setup Logging
-  mstools:::log_setup()
-  ## Get and Evaluate File Extension Type to ensure an osw file was supplied
-  fileType <- tools::file_ext(pqp_file)
-  if( tolower(fileType)!='pqp' ){
-    MazamaCoreUtils::logger.error( "The supplied file was not a valid OSW database file!\n You provided a file of type: %s", fileType)
-  }
+  # ## Setup Logging
+  # mstools:::log_setup()
+  # ## Get and Evaluate File Extension Type to ensure an osw file was supplied
+  # fileType <- tools::file_ext(pqp_file)
+  # if( tolower(fileType)!='pqp' ){
+  #   MazamaCoreUtils::logger.error( "The supplied file was not a valid OSW database file!\n You provided a file of type: %s", fileType)
+  # }
   
   ##************************************************
   ##    Establiash Connection to DB
