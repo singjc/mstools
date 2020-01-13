@@ -18,14 +18,14 @@ getXIC(
   doFacetZoom = FALSE,
   FacetFcnCall = NULL,
   top_trans_mod_list = NULL,
+  transition_selection_list = NULL,
   RT_pkgrps = NULL,
   show_manual_annotation = NULL,
   plotIdentifying.Unique = NULL,
   plotIdentifying.Shared = NULL,
   plotIdentifying.Against = NULL,
   show_n_transitions = NULL,
-  show_legend = T,
-  verbosity = 0
+  show_legend = T
 )
 }
 \arguments{
@@ -51,7 +51,21 @@ getXIC(
 
 \item{top_trans_mod_list}{A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities.}
 
+\item{transition_selection_list}{A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )}
+
 \item{RT_pkgrps}{A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)}
+
+\item{show_manual_annotation}{a dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)}
+
+\item{plotIdentifying.Unique}{A logical value. TRUE will plot unique identifying transitions. (Default: NULL)}
+
+\item{plotIdentifying.Shared}{A logical value. TRUE will plot shared identifying transitions. (Default: NULL)}
+
+\item{plotIdentifying.Against}{A logical value. TRUE will plot against identifying transitions. (Default: NULL)}
+
+\item{show_n_transitions}{A numeric value indicating the number of transitions to draw. (Default: NULL, default is 6 transitions)}
+
+\item{show_legend}{A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)}
 
 \item{unit_mod_list}{A list of potential modifiable forms. (Default: NULL)}
 

@@ -4,12 +4,14 @@
 \alias{getChromatogramDataPoints_}
 \title{Extract Chromatographic data (Retention Time and Intensity) from mzML or sqMass chromatograms.}
 \usage{
-getChromatogramDataPoints_(filename, frag_ids)
+getChromatogramDataPoints_(filename, frag_ids, mzPntrs = NULL)
 }
 \arguments{
 \item{filename}{A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)}
 
 \item{frag_ids}{A list of a vector containing fragment ids}
+
+\item{mzPntrs}{A list object containing cached mzR objects.}
 }
 \value{
 A list of fragment ids containing 2 arrays for Retention time and Intensity

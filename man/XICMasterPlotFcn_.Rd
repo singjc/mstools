@@ -21,7 +21,6 @@ XICMasterPlotFcn_(
   doFacetZoom = F,
   FacetFcnCall = NULL,
   doPlot = T,
-  RT_padding = 100,
   Charge_State = NULL,
   N_sample = 1,
   idx_draw_these = NULL,
@@ -31,12 +30,61 @@ XICMasterPlotFcn_(
   show_n_transitions = NULL,
   show_all_pkgrprnk = T,
   show_manual_annotation = NULL,
-  show_legend = T,
-  verbosity = 0
+  show_legend = T
 )
 }
 \arguments{
-\item{dup_peps}{A character vector of a peptide sequence}
+\item{dup_peps}{A character vector of a peptide sequence(s).}
+
+\item{uni_mod}{A character vector of a modified peptide sequence. (Default: NULL) If using this argument, dup_peps must be a single peptide}
+
+\item{sqMass_files}{A list of character vectors. Full paths to chromatogram file(s).}
+
+\item{in_lib}{A character vector. Full path to a pqp assay library.}
+
+\item{in_osw}{A character vector. Full path to an osw results file.}
+
+\item{plotPrecursor}{A logical value. True will plot precursor chromatogram}
+
+\item{plotIntersectingDetecting}{A logcail value. True will plot intersecting detecting transitions if comparing two peptidoforms.}
+
+\item{plotUniqueDetecting}{A logical value. True will plot unique detecting transitions if comparing two peptidoforms.}
+
+\item{plotIdentifying}{A logical value. True will plot identifying transitions.}
+
+\item{plotIdentifying.Unique}{A logical value. True will plot unique identifying transitions.}
+
+\item{plotIdentifying.Shared}{A logical value. True will plot shared identifying transitions.}
+
+\item{plotIdentifying.Against}{A logical value. True will plot against identifying transitions.}
+
+\item{smooth_chromatogram}{A list containing p (numeric) for the polynomial order for sgolay, and n (numeric) the bandwidth for sgolay. (Defualt: list(p=4, n=9)}
+
+\item{doFacetZoom}{A logical valie. Should the plot be zoomed in. The default zooming operation is based on the max int divided by 4. (Default: FALSE)}
+
+\item{FacetFcnCall}{A facet_zoom function with user defined parameters. i.e. FacetFcnCall = facet_zoom(xlim = c(7475, 7620), ylim = c(0, 4000) ). (Default: NULL)}
+
+\item{doPlot}{A logical value. TRUE will perform steps to save the plot as a pdf.}
+
+\item{Charge_State}{A numeric value. The target charge state. (Default: NULL)}
+
+\item{N_sample}{A numeric value. The number of peptidoforms to sample, if more than one. (Default: 1)}
+
+\item{idx_draw_these}{A vector of numeric values. The indices for the peptidoforms you wish to exaine.}
+
+\item{store_plots_subdir}{A character vector. The location to store plots.}
+
+\item{printPlot}{A logical value. TRUE will print plot in RStudio display.}
+
+\item{use_top_trans_pep}{A logical value. TRUE will rank the transitions based on the posterior error probabilities.}
+
+\item{show_n_transitions}{A numeric value. Show n number of transitions}
+
+\item{show_all_pkgrprnk}{A logical value. Show all feature peak-group ranks. Usually 5. (Default: 5)}
+
+\item{show_manual_annotation}{A dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)}
+
+\item{show_legend}{A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)}
 }
 \value{
 A ggplot-grobs table of a XIC

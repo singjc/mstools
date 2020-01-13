@@ -8,6 +8,11 @@ unimodTocodename( mod_seq, out='sequence' )
 }
 \arguments{
 \item{mod_seq}{A character vector containing of a peptide sequence, containing UniMod IDs to be converted to code names}
+
+\item{out}{A character vector. Default: 'sequence' will return mod_seq with covnerted unimod to codename. Otherwise, will return converted codename}
+}
+\value{
+A character vector. Returned mod_seq with converted codename or returned codename
 }
 \description{
 Conversion from UniMod ID to modification name
