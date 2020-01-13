@@ -110,6 +110,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
     show_all_pkgrprnk=T
     show_manual_annotation=NULL
     show_legend=T
+    uni_isoform_group_list_idx=1
+    mod=uni_mod
   }
   
   tictoc::tic( paste('XIC plotting for ', length(dup_peps), ' peptides took: ', sep=' '))

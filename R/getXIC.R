@@ -23,6 +23,7 @@
 #' @param doFacetZoom A logical value for calling Facet_Zoom function to zoom in the y axis based on the max_Int/4. (Default: FALSE)
 #' @param FacetFcnCall A personalized function call to Facet_Zoom. I.e. FacetFcnCall = facet_zoom(xlim = c(3950, 4050), ylim = c(0, 10000)). (Default: NULL)
 #' @param top_trans_mod_list A list containing a data.table/data.frame of the current peptide(mod peptide) with information for transition ids and top posterior error probabilities.
+#' @param transition_selection_list A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )
 #' @param RT_pkgrps A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)
 #' @param show_manual_annotation a dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)
 #' @param plotIdentifying.Unique A logical value. TRUE will plot unique identifying transitions. (Default: NULL)
@@ -56,6 +57,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     doFacetZoom=FALSE, 
                     FacetFcnCall=NULL,
                     top_trans_mod_list=NULL, 
+                    transition_selection_list=NULL,
                     RT_pkgrps=NULL,
                     show_manual_annotation=NULL,
                     plotIdentifying.Unique=NULL, 
@@ -93,9 +95,9 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   checkNumeric <- function( numeric_obj, signif.not=TRUE ){
     if( !is.null( numeric_obj ) ){
       if ( signif.not==FALSE ){
-      return( signif(numeric_obj, digits = 4) )
-        } else {
-      return( formatC(numeric_obj, format = "e", digits = 3) )
+        return( signif(numeric_obj, digits = 4) )
+      } else {
+        return( formatC(numeric_obj, format = "e", digits = 3) )
       }
     } else {
       return( NULL )
@@ -271,9 +273,9 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
             geom_vline(xintercept = osw_RT_pkgrps_filtered$RT[RT_idx], color=jBrewColors[RT_idx], alpha=0.65, size = 1.5 ) +
             geom_vline(xintercept = osw_RT_pkgrps_filtered$leftWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
             geom_vline(xintercept = osw_RT_pkgrps_filtered$rightWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) 
-            # geom_rect( aes(xmin=osw_RT_pkgrps_filtered$leftWidth[RT_idx], xmax=osw_RT_pkgrps_filtered$rightWidth[RT_idx], ymin=0, ymax=Inf), col=jBrewColors[RT_idx], fill=jBrewColors[RT_idx], alpha=0.5) +
-            # geom_label(data=point_dataframe, aes(x=RT, y=y,label=label), alpha=0.7, fill=jBrewColors[RT_idx], size=3)
-            y_increment = y_increment + 500
+          # geom_rect( aes(xmin=osw_RT_pkgrps_filtered$leftWidth[RT_idx], xmax=osw_RT_pkgrps_filtered$rightWidth[RT_idx], ymin=0, ymax=Inf), col=jBrewColors[RT_idx], fill=jBrewColors[RT_idx], alpha=0.5) +
+          # geom_label(data=point_dataframe, aes(x=RT, y=y,label=label), alpha=0.7, fill=jBrewColors[RT_idx], size=3)
+          y_increment = y_increment + 500
           
           #****************************************************                                                                                       
           # Check to see if master annotation table exits                                                                                             
@@ -455,88 +457,90 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ##
     ##    Get unique peptide information
     ##_________________________________________
-
-    uni_forms <- unique (unlist( strsplit( unique(gsub(".*\\{|\\}.*", "", df_plot$TRAML_ID)), split='\\|') ) )
     
-    # uni_forms <- c("EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLSLM(UniMod:35)DVK", "EGHAQNPM(UniMod:35)EPSVPQLS(UniMod:21)LM(UniMod:35)DVK")
-    
-    peptide_modification_positions <- lapply( uni_forms, function(pep){ mstools::getModificationPosition_( pep ) } )
-    names(peptide_modification_positions) <- uni_forms
-    
-    do.call( rbind, lapply(peptide_modification_positions, function(x){ x[match(names(peptide_modification_positions[[1]]), names(x))]}) ) %>% ## Turn list into dataframe, and ensure items in list are matching by name
-      as.data.frame() %>%
-      tibble::rownames_to_column( "peptides" ) %>%
-      mutate( unimod_peptides = mstools::codenameTounimod(peptides) ) %>%
-      mutate( target_peptide = unimod_peptides==mod ) -> peptides_information_df
-    
-    ## Get modification columns
-    modification_col_indices <- grep('modification_.*', colnames(peptides_information_df))
-    
-    ## convert naked peptide length and modification position columns to nemeric vectors
-    lapply(modification_col_indices, function(col){
-      data.table::set( peptides_information_df, NULL, col, as.numeric(peptides_information_df[[col]]) )
-    })
-    class(peptides_information_df$naked_peptide_length) <- "numeric"
-    
-    if ( length(modification_col_indices)>1 ){
-    modifications_position_df <- peptides_information_df[,modification_col_indices] 
-    
-    target_modification <- apply(modifications_position_df, 2, function( positions ){
-      if( length(unique(positions)) > 1){
-        return( TRUE )
+    if ( is.null(transition_selection_list) ){
+      
+      uni_forms <- unique (unlist( strsplit( unique(gsub(".*\\{|\\}.*", "", df_plot$TRAML_ID)), split='\\|') ) )
+      
+      # uni_forms <- c("EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLSLM(UniMod:35)DVK", "EGHAQNPM(UniMod:35)EPSVPQLS(UniMod:21)LM(UniMod:35)DVK")
+      
+      peptide_modification_positions <- lapply( uni_forms, function(pep){ mstools::getModificationPosition_( pep ) } )
+      names(peptide_modification_positions) <- uni_forms
+      
+      do.call( rbind, lapply(peptide_modification_positions, function(x){ x[match(names(peptide_modification_positions[[1]]), names(x))]}) ) %>% ## Turn list into dataframe, and ensure items in list are matching by name
+        as.data.frame() %>%
+        tibble::rownames_to_column( "peptides" ) %>%
+        mutate( unimod_peptides = mstools::codenameTounimod(peptides) ) %>%
+        mutate( target_peptide = unimod_peptides==mod ) -> peptides_information_df
+      
+      ## Get modification columns
+      modification_col_indices <- grep('modification_.*', colnames(peptides_information_df))
+      
+      ## convert naked peptide length and modification position columns to nemeric vectors
+      lapply(modification_col_indices, function(col){
+        data.table::set( peptides_information_df, NULL, col, as.numeric(peptides_information_df[[col]]) )
+      })
+      class(peptides_information_df$naked_peptide_length) <- "numeric"
+      
+      if ( length(modification_col_indices)>1 ){
+        modifications_position_df <- peptides_information_df[,modification_col_indices] 
+        
+        target_modification <- apply(modifications_position_df, 2, function( positions ){
+          if( length(unique(positions)) > 1){
+            return( TRUE )
+          } else {
+            return( FALSE )
+          }
+        })
+        
+        target_modification <- names(target_modification)[target_modification]
       } else {
-        return( FALSE )
+        target_modification <- grep('modification_.*', colnames(peptides_information_df), value = TRUE)
       }
-    })
-    
-    target_modification <- names(target_modification)[target_modification]
-    } else {
-      target_modification <- grep('modification_.*', colnames(peptides_information_df), value = TRUE)
-    }
-    
-    peptides_information_df %>%
-      dplyr::mutate( 
-        modification_position = ifelse( !!rlang::sym(target_modification)==max( !!rlang::sym(target_modification) ), 'most_right',
-                                        ifelse( !!rlang::sym(target_modification)==min( !!rlang::sym(target_modification) ), 'most_left',
-                                        ifelse( !!rlang::sym(target_modification)!=max( !!rlang::sym(target_modification) | !!rlang::sym(target_modification)!=max( !!rlang::sym(target_modification) ) ), 'inbetween', 'nan') 
-                                      ) )
+      
+      peptides_information_df %>%
+        dplyr::mutate( 
+          modification_position = ifelse( !!rlang::sym(target_modification)==max( !!rlang::sym(target_modification) ), 'most_right',
+                                          ifelse( !!rlang::sym(target_modification)==min( !!rlang::sym(target_modification) ), 'most_left',
+                                                  ifelse( !!rlang::sym(target_modification)!=max( !!rlang::sym(target_modification) | !!rlang::sym(target_modification)!=max( !!rlang::sym(target_modification) ) ), 'inbetween', 'nan') 
+                                          ) )
         ) -> peptides_information_df
-    
-    ### Get series starting from up to modification amino acid
-    
-    peptides_information_df %>%
-      dplyr::mutate(
-        
-        ion_series_start = ifelse( modification_position=='most_right' &  target_peptide, 
-                                   dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )+1, 
-                                   dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod )-1
+      
+      ### Get series starting from up to modification amino acid
+      
+      peptides_information_df %>%
+        dplyr::mutate(
           
-        ),
-        ion_series_end = ifelse( modification_position=='most_right' &  target_peptide, 
-                                 dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod ), 
-                                 dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )
-                                 
-        ),
-        use_ion_series = ifelse( modification_position=='most_right', 'y', 'b')
-        
-        
-      ) -> peptides_information_df
-    
-    
-    peptides_information_df %>%
-      dplyr::mutate( 
-        
-        ion_series_start_final = ifelse( length(ion_series_start)>1 & use_ion_series=='y', max(unlist(ion_series_start)), min(unlist(ion_series_start)) 
-                                         ),
-        ion_series_end_final = ifelse( length(ion_series_end)>1 & use_ion_series=='y', max(unlist(ion_series_end)), min(unlist(ion_series_end)) 
-          )
-        
+          ion_series_start = ifelse( modification_position=='most_right' &  target_peptide, 
+                                     dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )+1, 
+                                     dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod )-1
+                                     
+          ),
+          ion_series_end = ifelse( modification_position=='most_right' &  target_peptide, 
+                                   dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides==mod ), 
+                                   dplyr::filter( dplyr::select(peptides_information_df, !!rlang::sym(target_modification)), peptides_information_df$unimod_peptides!=mod )
+                                   
+          ),
+          use_ion_series = ifelse( modification_position=='most_right', 'y', 'b')
+          
+          
         ) -> peptides_information_df
+      
+      
+      peptides_information_df %>%
+        dplyr::mutate( 
+          
+          ion_series_start_final = ifelse( length(ion_series_start)>1 & use_ion_series=='y', max(unlist(ion_series_start)), min(unlist(ion_series_start)) 
+          ),
+          ion_series_end_final = ifelse( length(ion_series_end)>1 & use_ion_series=='y', max(unlist(ion_series_end)), min(unlist(ion_series_end)) 
+          )
+          
+        ) -> peptides_information_df
+      
+      class(peptides_information_df$ion_series_start_final) <- "numeric"
+      class(peptides_information_df$ion_series_end_final) <- "numeric"
+    } 
     
-    class(peptides_information_df$ion_series_start_final) <- "numeric"
-    class(peptides_information_df$ion_series_end_final) <- "numeric"
-    
-
     ## @TODO: Will need a better way to do this
     if ( !(is.null(top_trans_mod_list)) ){
       
@@ -668,30 +672,57 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         if( F ) {
           unique(df_plot$TRAML_ID)[!grepl(".*\\|.*", unique(df_plot$TRAML_ID))]
         }
-        
-        ion_series_start <- peptides_information_df$ion_series_start_final[peptides_information_df$target_peptide]
-        ion_series_end <- peptides_information_df$ion_series_end_final[peptides_information_df$target_peptide]
-        ## Check which ion series
-        if ( peptides_information_df$use_ion_series[ peptides_information_df$target_peptide ]=='y' ){
-          ion_series_start <- peptides_information_df$naked_peptide_length[ peptides_information_df$target_peptide ] - ion_series_start + 1
-          ion_series_end <- peptides_information_df$naked_peptide_length[ peptides_information_df$target_peptide ] - ion_series_end + 1
-        }
-        seq_from <- min(c(ion_series_start, ion_series_end))
-        seq_to <- max(c(ion_series_start, ion_series_end))
-        df_plot %>%
-          dplyr::filter( 
-            grepl( glob2rx( paste( paste0( peptides_information_df$use_ion_series[peptides_information_df$target_peptide], 
-                                           base::seq(
-                                             from=seq_from, 
-                                             to=seq_to, 
-                                             by=1 
-                                           )  
-            ), collapse = '|' ) 
-            ), gsub('.*\\{.*}_\\d+.\\d+_\\d+.\\d+_-\\d+.*_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID) 
+        if ( is.null(transition_selection_list) ) {
+          ion_series_start <- peptides_information_df$ion_series_start_final[peptides_information_df$target_peptide]
+          ion_series_end <- peptides_information_df$ion_series_end_final[peptides_information_df$target_peptide]
+          ## Check which ion series
+          if ( peptides_information_df$use_ion_series[ peptides_information_df$target_peptide ]=='y' ){
+            ion_series_start <- peptides_information_df$naked_peptide_length[ peptides_information_df$target_peptide ] - ion_series_start + 1
+            ion_series_end <- peptides_information_df$naked_peptide_length[ peptides_information_df$target_peptide ] - ion_series_end + 1
+          }
+          seq_from <- min(c(ion_series_start, ion_series_end))
+          seq_to <- max(c(ion_series_start, ion_series_end))
+          df_plot %>%
+            dplyr::filter( 
+              grepl( glob2rx( paste( paste0( peptides_information_df$use_ion_series[peptides_information_df$target_peptide], 
+                                             base::seq(
+                                               from=seq_from, 
+                                               to=seq_to, 
+                                               by=1 
+                                             )  
+              ), collapse = '|' ) 
+              ), gsub('.*\\{.*}_\\d+.\\d+_\\d+.\\d+_-\\d+.*_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID) 
+              
+              )
+            ) -> tmp_plot
+        } else {
+          
+          # transition_selection_list
+          ion_series_keep_regex <- ""
+          for ( ion_series in names(transition_selection_list) ){
             
-            )
-          ) -> tmp_plot
-        
+            transition_selection_list[[ ion_series ]]
+            
+            seq_from <- min(transition_selection_list[[ ion_series ]])
+            seq_to <- max(transition_selection_list[[ ion_series ]])
+            
+            ion_series_keep_regex <- paste(ion_series_keep_regex, paste( paste0( ion_series, 
+                                                                                 base::seq(
+                                                                                   from=seq_from, 
+                                                                                   to=seq_to, 
+                                                                                   by=1 
+                                                                                 )  
+            ), collapse = '|' ), sep="|" )
+          }
+          ion_series_keep_regex <- gsub("^\\|", "", ion_series_keep_regex)
+          
+          df_plot %>%
+            dplyr::filter(
+              grepl( glob2rx( ion_series_keep_regex ), gsub('.*\\{.*}_\\d+.\\d+_\\d+.\\d+_-\\d+.*_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID)
+              )
+            ) -> tmp_plot
+          
+        }
         
         # mods_present <- names(uni_mod_list)
         # alternate_mod <- mods_present[ !( mods_present %in% mod)]
