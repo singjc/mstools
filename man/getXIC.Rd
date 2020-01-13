@@ -21,6 +21,7 @@ getXIC(
   transition_selection_list = NULL,
   RT_pkgrps = NULL,
   show_manual_annotation = NULL,
+  show_peak_info_tbl = F,
   plotIdentifying.Unique = NULL,
   plotIdentifying.Shared = NULL,
   plotIdentifying.Against = NULL,
@@ -56,6 +57,8 @@ getXIC(
 \item{RT_pkgrps}{A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)}
 
 \item{show_manual_annotation}{a dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)}
+
+\item{show_peak_info_tbl}{A logical value. Show peak information table containing RT, rank, ms2-mscore, ipf_pep, ipf-mscore. (Default: FALSE)}
 
 \item{plotIdentifying.Unique}{A logical value. TRUE will plot unique identifying transitions. (Default: NULL)}
 

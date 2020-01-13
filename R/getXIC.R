@@ -26,6 +26,7 @@
 #' @param transition_selection_list A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )
 #' @param RT_pkgrps A numeric vector of the alternative peak group ranks to display. I.e. c(2, 4) (Default: NULL)
 #' @param show_manual_annotation a dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)
+#' @param show_peak_info_tbl A logical value. Show peak information table containing RT, rank, ms2-mscore, ipf_pep, ipf-mscore. (Default: FALSE)
 #' @param plotIdentifying.Unique A logical value. TRUE will plot unique identifying transitions. (Default: NULL)
 #' @param plotIdentifying.Shared A logical value. TRUE will plot shared identifying transitions. (Default: NULL)
 #' @param plotIdentifying.Against A logical value. TRUE will plot against identifying transitions. (Default: NULL)
@@ -60,6 +61,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     transition_selection_list=NULL,
                     RT_pkgrps=NULL,
                     show_manual_annotation=NULL,
+                    show_peak_info_tbl=F,
                     plotIdentifying.Unique=NULL, 
                     plotIdentifying.Shared=NULL, 
                     plotIdentifying.Against=NULL,
@@ -201,7 +203,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_df %>%
         dplyr::filter( m_score==min(m_score) ) -> osw_df_filtered #### No longer filter by peak group
       
-      if ( dim(osw_df_filtered) > 1 ){
+      if ( dim(osw_df_filtered)[1] > 1 ){
         osw_df_filtered %>%
           dplyr::filter( peak_group_rank==min(peak_group_rank) ) -> osw_df_filtered
       }
@@ -277,31 +279,34 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           # geom_label(data=point_dataframe, aes(x=RT, y=y,label=label), alpha=0.7, fill=jBrewColors[RT_idx], size=3)
           y_increment = y_increment + 500
           
-          #****************************************************                                                                                       
-          # Check to see if master annotation table exits                                                                                             
-          #****************************************************                                                                                       
-          if ( !exists("master_annotation_table") ){                                                                                                  
-            master_annotation_table <- point_dataframe                                                                                                
-          } else {                                                                                                                                    
-            master_annotation_table <- rbind(master_annotation_table, point_dataframe)                                                                
-          }
-        }
+          if ( show_peak_info_tbl ){
+            #****************************************************                                                                                       
+            # Check to see if master annotation table exits                                                                                             
+            #****************************************************                                                                                       
+            if ( !exists("master_annotation_table") ){                                                                                                  
+              master_annotation_table <- point_dataframe                                                                                                
+            } else {                                                                                                                                    
+              master_annotation_table <- rbind(master_annotation_table, point_dataframe)                                                                
+            }
+          } # End show_peak_info_tbl
+        } # End for loop
         
-        theme_col <- gridExtra::ttheme_default(core = list(fg_params = list( col = c( jBrewColors )),                                                                                                                                                                                                            
-                                                           bg_params = list( col = NA)),                                                                 
-                                               rowhead = list(bg_params = list(col = NA)),                                                                
-                                               colhead = list(bg_params = list(col = NA))                                                                 
-        )                                                                                                                                                
-        
-        #*****************************************************                                                                                           
-        # Make tableGrob object with annotation information                                                                                              
-        # and get height of table                                                                                                                         
-        #*****************************************************                                                                                           
-        annotationGrob <- gridExtra::tableGrob(master_annotation_table, theme = theme_col, row = NULL)                                                             
-        th <- sum(annotationGrob$heights)
-        
-      }
-    }
+        if ( show_peak_info_tbl ){
+          theme_col <- gridExtra::ttheme_default(core = list(fg_params = list( col = c( jBrewColors )),                                                                                                                                                                                                            
+                                                             bg_params = list( col = NA)),                                                                 
+                                                 rowhead = list(bg_params = list(col = NA)),                                                                
+                                                 colhead = list(bg_params = list(col = NA))                                                                 
+          )                                                                                                                                                
+          
+          #*****************************************************                                                                                           
+          # Make tableGrob object with annotation information                                                                                              
+          # and get height of table                                                                                                                         
+          #*****************************************************                                                                                           
+          annotationGrob <- gridExtra::tableGrob(master_annotation_table, theme = theme_col, row = NULL)                                                             
+          th <- sum(annotationGrob$heights)
+        } # End show_peak_info_tbl
+      } # End osw_RT_pkgrps_filtered Check, ensure not empty
+    } # End RT_pkgrps Arg Check
     
     #***************************************
     # Plot Mannual Annotation Coordinates
@@ -365,7 +370,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       }
     }
     
-    if ( exists("annotationGrob") ){                                                                                                                    
+    if ( exists("annotationGrob") & show_peak_info_tbl ){                                                                                                                    
       graphic_obj <- ggpubr::as_ggplot( gridExtra::arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = grid::unit.c(unit(1, "null"), th )) )                    
     }    
     return( list(graphic_obj=graphic_obj, max_Int=max_Int) )

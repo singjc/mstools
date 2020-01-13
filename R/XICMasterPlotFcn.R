@@ -33,6 +33,7 @@
 #' @param store_plots_subdir A character vector. The location to store plots.
 #' @param printPlot A logical value. TRUE will print plot in RStudio display.
 #' @param use_top_trans_pep A logical value. TRUE will rank the transitions based on the posterior error probabilities.
+#' @param transition_selection_list A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )
 #' @param show_n_transitions A numeric value. Show n number of transitions
 #' @param show_all_pkgrprnk A logical value. Show all feature peak-group ranks. Usually 5. (Default: 5)
 #' @param show_manual_annotation A dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)
@@ -68,8 +69,10 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                store_plots_subdir = '/Results/',
                                printPlot=F,
                                use_top_trans_pep=F,
+                               transition_selection_list=NULL,
                                show_n_transitions=NULL,
                                show_all_pkgrprnk=T,
+                               show_peak_info_tbl=F,
                                show_manual_annotation=NULL,
                                show_legend=T
                                ){
@@ -414,7 +417,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     in_osw=NULL, 
                                     smooth_chromatogram=smooth_chromatogram, 
                                     doFacetZoom=F, 
-                                    top_trans_mod_list=NULL, 
+                                    top_trans_mod_list=top_trans_mod_list, 
+                                    transition_selection_list=transition_selection_list,
                                     show_n_transitions=show_n_transitions, 
                                     plotIdentifying.Unique=plotIdentifying.Unique, 
                                     plotIdentifying.Shared=plotIdentifying.Shared, 
@@ -442,6 +446,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                   top_trans_mod_list=NULL, 
                                   RT_pkgrps=RT_pkgrps, 
                                   show_manual_annotation=show_manual_annotation, 
+                                  show_peak_info_tbl=show_peak_info_tbl,
                                   FacetFcnCall=FacetFcnCall, 
                                   show_legend = show_legend  )
             max_Int <- g$max_Int

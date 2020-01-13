@@ -27,8 +27,10 @@ XICMasterPlotFcn_(
   store_plots_subdir = "/Results/",
   printPlot = F,
   use_top_trans_pep = F,
+  transition_selection_list = NULL,
   show_n_transitions = NULL,
   show_all_pkgrprnk = T,
+  show_peak_info_tbl = F,
   show_manual_annotation = NULL,
   show_legend = T
 )
@@ -77,6 +79,8 @@ XICMasterPlotFcn_(
 \item{printPlot}{A logical value. TRUE will print plot in RStudio display.}
 
 \item{use_top_trans_pep}{A logical value. TRUE will rank the transitions based on the posterior error probabilities.}
+
+\item{transition_selection_list}{A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )}
 
 \item{show_n_transitions}{A numeric value. Show n number of transitions}
 
