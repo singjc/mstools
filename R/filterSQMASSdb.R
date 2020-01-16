@@ -17,12 +17,12 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @importFrom DBI dbConnect dbDisconnect dbExecute
+#' @importFrom RSQLite SQLite 
+#' @importFrom dplyr collect tbl
+#' @importFrom dbplyr sql 
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 #' @importFrom tools file_ext
-#' @import MazamaCoreUtils
-#' @import DBI
-#' @import RSQLite
-#' @import dplyr
-#' @import dbplyr
 filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter) {
   ## TODO add controls tatements for check tables being present
   DEBUG=FALSE
@@ -34,18 +34,21 @@ filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter) {
   tryCatch(
     expr = {
       
-      ## Setup Logging
-      mstools:::log_setup()
+      ## Check if logging has been initialized
+      if( MazamaCoreUtils::logger.isInitialized() ){
+        log_setup()
+      }
+      
       ## Get and Evaluate File Extension Type to ensure an osw file was supplied
       fileType <- tools::file_ext(sqmass_file)
       if( tolower(fileType)!='sqmass' ){
-        MazamaCoreUtils::logger.error( "The supplied file was not a valid OSW database file!\n You provided a file of type: %s", fileType)
+        MazamaCoreUtils::logger.error( "[mstools::filterSQMASSdb] The supplied file was not a valid OSW database file!\n You provided a file of type: %s", fileType)
       }
       
       ##************************************************
       ##    Establiash Connection to DB
       ##************************************************
-      
+      MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Connecting to Database: %s", sqmass_file)
       db <- DBI::dbConnect( RSQLite::SQLite(), sqmass_file )
       
       ##************************************************
@@ -56,6 +59,7 @@ filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter) {
 WHERE PRECURSOR.PEPTIDE_SEQUENCE NOT IN ('%s')", paste(unmodified_sequence_filter, collapse="','") )
       
       ## Send query to database
+      MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Querying Database: %s", precursor_filter_stmt)
       precursor_table <- dplyr::collect( dplyr::tbl( db, dbplyr::sql( precursor_filter_stmt )) )
       
       ## Split chromatogram ids into partitions of 100. Large queries don't work well in sqlite
@@ -66,6 +70,7 @@ WHERE PRECURSOR.PEPTIDE_SEQUENCE NOT IN ('%s')", paste(unmodified_sequence_filte
         ## Delete Query
         precursor_delete_stmt <- sprintf( "DELETE FROM PRECURSOR WHERE PRECURSOR.CHROMATOGRAM_ID IN (%s)", paste(chromatogram_ids_sub_list, collapse = ","))
         ## Execute delete query
+        MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Querying Database: %s", precursor_delete_stmt)
         DBI::dbExecute( db, precursor_delete_stmt )
         
         ##************************************************
@@ -74,6 +79,7 @@ WHERE PRECURSOR.PEPTIDE_SEQUENCE NOT IN ('%s')", paste(unmodified_sequence_filte
         ## chromatogram table delte query
         chromatogram_table_delete_stmt <- sprintf( "DELETE FROM CHROMATOGRAM WHERE CHROMATOGRAM.ID IN (%s)", paste(chromatogram_ids_sub_list, collapse = ","))
         ## Execute delete query
+        MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Querying Database: %s", chromatogram_table_delete_stmt)
         DBI::dbExecute( db, chromatogram_table_delete_stmt )
         
         ##************************************************
@@ -82,6 +88,7 @@ WHERE PRECURSOR.PEPTIDE_SEQUENCE NOT IN ('%s')", paste(unmodified_sequence_filte
         ## chromatogram table delte query
         data_table_delete_stmt <- sprintf( "DELETE FROM DATA WHERE DATA.CHROMATOGRAM_ID IN (%s)", paste(chromatogram_ids_sub_list, collapse = ","))
         ## Execute delete query
+        MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Querying Database: %s", data_table_delete_stmt)
         DBI::dbExecute( db, data_table_delete_stmt )
         
         ##************************************************
@@ -90,20 +97,23 @@ WHERE PRECURSOR.PEPTIDE_SEQUENCE NOT IN ('%s')", paste(unmodified_sequence_filte
         ## chromatogram table delte query
         product_table_delete_stmt <- sprintf( "DELETE FROM PRODUCT WHERE PRODUCT.CHROMATOGRAM_ID IN (%s)", paste(chromatogram_ids_sub_list, collapse = ","))
         ## Execute delete query
+        MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Querying Database: %s", product_table_delete_stmt)
         DBI::dbExecute( db, product_table_delete_stmt )
       }
       ##***********************************************
       ##    Clear unused space in db
       ##***********************************************
+      MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Vacuuming Database")
       DBI::dbExecute(db, "VACUUM")
       
       ##***********************************************
       ##    Disconnect fom DB 
       ##***********************************************
+      MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Disconnecting From Database: %s", sqmass_file)
       DBI::dbDisconnect( db )
     },
     error = function(e){
-      MazamaCoreUtils::logger.error("filterSQMASSb.R: There was the following error that occured during function call...\n", e)
+      MazamaCoreUtils::logger.error("[mstools::filterSQMASSdb] There was the following error that occured during function call...\n", e$message)
     }
   ) # End tryCatch
 }# End functin

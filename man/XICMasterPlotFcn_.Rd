@@ -57,9 +57,9 @@ XICMasterPlotFcn_(
 
 \item{plotIdentifying.Unique}{A logical value. True will plot unique identifying transitions.}
 
-\item{plotIdentifying.Shared}{A logical value. True will plot shared identifying transitions.}
+\item{plotIdentifying.Shared}{A logical value. True will plot shared identifying transitions. (Decaprecated)}
 
-\item{plotIdentifying.Against}{A logical value. True will plot against identifying transitions.}
+\item{plotIdentifying.Against}{A logical value. True will plot against identifying transitions. (Decaprecated)}
 
 \item{smooth_chromatogram}{A list containing p (numeric) for the polynomial order for sgolay, and n (numeric) the bandwidth for sgolay. (Defualt: list(p=4, n=9)}
 

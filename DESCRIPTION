@@ -2,7 +2,7 @@ Package: mstools
 Type: Package
 Title: OpenSWATH Mass Spectrometry Data Exploration
 Version: 1.0
-Date: 2019-11-12
+Date: 2020-01-16
 Author: Justin Sing
 Maintainer: Justin Sing <justincsing@gmail.com>
 Description: More about what it does (maybe more than one line)

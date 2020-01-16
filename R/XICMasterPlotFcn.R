@@ -21,8 +21,8 @@
 #' @param plotUniqueDetecting A logical value. True will plot unique detecting transitions if comparing two peptidoforms.
 #' @param plotIdentifying A logical value. True will plot identifying transitions.
 #' @param plotIdentifying.Unique A logical value. True will plot unique identifying transitions.
-#' @param plotIdentifying.Shared A logical value. True will plot shared identifying transitions.
-#' @param plotIdentifying.Against A logical value. True will plot against identifying transitions.
+#' @param plotIdentifying.Shared A logical value. True will plot shared identifying transitions. (Decaprecated)
+#' @param plotIdentifying.Against A logical value. True will plot against identifying transitions. (Decaprecated)
 #' @param smooth_chromatogram A list containing p (numeric) for the polynomial order for sgolay, and n (numeric) the bandwidth for sgolay. (Defualt: list(p=4, n=9)
 #' @param doFacetZoom A logical valie. Should the plot be zoomed in. The default zooming operation is based on the max int divided by 4. (Default: FALSE)
 #' @param FacetFcnCall A facet_zoom function with user defined parameters. i.e. FacetFcnCall = facet_zoom(xlim = c(7475, 7620), ylim = c(0, 4000) ). (Default: NULL)
@@ -43,13 +43,13 @@
 #' @return A ggplot-grobs table of a XIC
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
-#' @import tictoc
-#' @import crayon
-#' @import parallel
-#' @import ggplot2
-#' @import dplyr
-#' @importFrom dplyr %>%
-#' @import stringr
+#' @importFrom  tictoc tic toc
+#' @importFrom crayon blue red underline magenta bold 
+#' @importFrom parallel mclapply detectCores
+#' @importFrom ggplot2 ggplot
+#' @importFrom dplyr %>% filter select distinct arrange
+#' @importFrom stringr str_replace_all
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 XICMasterPlotFcn_ <- function( dup_peps, 
                                uni_mod=NULL, 
                                sqMass_files,  in_lib, in_osw, 
@@ -81,42 +81,6 @@ XICMasterPlotFcn_ <- function( dup_peps,
   
   # Get XICs for Modified Peptides  ---------------------------------------------------------------
   
-  if ( F ){
-    file_idx <- 1
-    dup_peps <- "NYVTPVNR"
-    pep <- dup_peps
-    uni_mod <- "NY(UniMod:21)VTPVNR"
-    Charge_State <- 2
-    sqMass_files <-  "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_rt_extraction_window_750_extra_rt_extraction_window_300/sqmass/lgillet_L160915_002-Manchester_dirty_phospho_-_Pool_U1_-_SW.mzML.gz_osw_chrom.sqMass"
-    in_lib <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/lib/ConsLib_5600_dpp_UK_peakview_curated_optimized_decoys.pqp"
-    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_rt_extraction_window_750_extra_rt_extraction_window_300/pyprophet/LDA/merged_runs_group_id_MS1MS2_intergration.osw"
-    plotPrecursor=T;
-    plotIntersectingDetecting=T;
-    plotUniqueDetecting=F;
-    plotIdentifying=T;
-    plotIdentifying.Unique=T;
-    plotIdentifying.Shared=F;
-    plotIdentifying.Against=F;
-    smooth_chromatogram=list(p = 4, n = 9) 
-    doFacetZoom=T
-    FacetFcnCall=NULL
-    doPlot=T
-    RT_padding=100
-    N_sample=1
-    idx_draw_these=NULL
-    store_plots_subdir = '/Results/'
-    printPlot=F
-    use_top_trans_pep=F
-    show_n_transitions=NULL
-    show_all_pkgrprnk=T
-    show_manual_annotation=NULL
-    show_legend=T
-    uni_isoform_group_list_idx=1
-    mod=uni_mod
-    show_transition_scores <- T
-    transition_selection_list <- list( b = c(3:3))
-  }
-  
   ## Check if logging has been initialized
   if( MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
@@ -126,18 +90,15 @@ XICMasterPlotFcn_ <- function( dup_peps,
   pep_counter = 0
   for ( pep in dup_peps){
     pep_counter = pep_counter + 1
-    cat( crayon::blue('#', pep, ' | (',pep_counter, ' of ', length(dup_peps), ')\n', sep='') )
-    # record_list <- list()
-    # record_i dx <- 1
-    # for ( file_idx in seq(1,length(sqMass_files),1) ){
+    MazamaCoreUtils::logger.info( crayon::blue('#', pep, ' | (',pep_counter, ' of ', length(dup_peps), ')\n', sep='') )
+   
     record_list <- parallel::mclapply( seq(1,length(sqMass_files),1), function(file_idx){
       in_sqMass <- sqMass_files[file_idx]
       run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$|[.]chrom.sqMass$', '', basename(in_sqMass))
       run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz|[.]chrom[.]sqMass)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
       
-      cat(crayon::blue('@ Run: ', run),'\n', sep='')
-      
-      cat('  o Working on: ', pep, '\n', sep='')
+      MazamaCoreUtils::logger.info( crayon::blue('@ Run: ', run),'\n', sep='' )
+
       plot_chrom_error <- tryCatch({
         
         #####################################
@@ -152,15 +113,14 @@ XICMasterPlotFcn_ <- function( dup_peps,
         })
         
         
-        
-        cat('   ~ Getting peptide library data.. for ', pep, '\n', sep='')
+        MazamaCoreUtils::logger.info('   ~ Getting peptide library data.. for ', pep, '\n', sep='')
         # Retrieve library data for specific peptide
-        df_lib <- mstools::getPepLibData_( in_lib, peptide_id=pep )
+        df_lib <- getPepLibData_( in_lib, peptide_id=pep )
         
-        cat('   ~ Getting OpenSwath data.. for ', pep, '\n', sep='')
+        MazamaCoreUtils::logger.info('   ~ Getting OpenSwath data.. for ', pep, '\n', sep='')
         # Load OSW Merged df
         osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
-        if ( dim(osw_df)[1]==0 ){ cat(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep=''); return(list()) }
+        if ( dim(osw_df)[1]==0 ){ MazamaCoreUtils::logger.error(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep=''); return(list()) }
         
         # Get unique number of modifications
         uni_mod_precursor_id <- unique(paste( df_lib$MODIFIED_SEQUENCE, df_lib$PRECURSOR_ID, df_lib$PRECURSOR_CHARGE, sep='_'))
@@ -170,8 +130,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
         
         # Get the charge states of the uni modifications found in OSW results
         current_uni_mod_charges <- as.numeric(gsub('.*_', '', desired_uni_mods))
-        # if ( length(current_uni_mod_charges)==2 & (current_uni_mod_charges[1]!=current_uni_mod_charges[2]) ){ cat(crayon::red('The two isoforms for:', underline(pep), 'are of different precursor charge. Skipping...\n'), sep=' '); return(list()) }
-        
+
         # Get a list of unique modifications
         #### @TODO: make this more versatile for cases with more than 2 isoforms
         if (is.null(uni_mod)){
@@ -179,12 +138,12 @@ XICMasterPlotFcn_ <- function( dup_peps,
           uni_mod <- sort(uni_mod)
           # uni_mod <- uni_mod[1:2]
           if(length(uni_mod)>2 | N_sample==1){
-            cat(crayon::red('There are more than 2 Modification forms for', crayon::underline(pep),'\n Currently cannot handle more than 2 peptidoforms...\nPetidoforms:\n', paste(uni_mod,collapse='\n'),'\n\n', sep=''))
+            MazamaCoreUtils::logger.info(crayon::red('There are more than 2 Modification forms for', crayon::underline(pep),'\n Currently cannot handle more than 2 peptidoforms...\nPetidoforms:\n', paste(uni_mod,collapse='\n'),'\n\n', sep=''))
             
-            cat('Will randomly sample 2 of the ', length(uni_mod), ' peptidoforms to process...\n')
+            MazamaCoreUtils::logger.info('Will randomly sample 2 of the ', length(uni_mod), ' peptidoforms to process...\n')
             n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
             n_mod_sites_common <- mstools::Mode(n_mod_sites)
-            cat( crayon::magenta$underline('There is(are) ', crayon::bold(length(n_mod_sites_common)), ' group(s) of isoforms...\n'))
+            MazamaCoreUtils::logger.info( crayon::magenta$underline('There is(are) ', crayon::bold(length(n_mod_sites_common)), ' group(s) of isoforms...\n'))
             if ( !is.null(idx_draw_these) ){
               uni_isoform_group_list <- list()
               uni_isoform_group_list[[1]] <- uni_mod[idx_draw_these]
@@ -200,7 +159,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             n_mod_sites_common <- mstools::Mode(n_mod_sites)
             if ( length(uni_mod)==1 ){ mod=uni_mod; max_Int=0; return( drawNakedPeptide_(df_lib=df_lib, mod=mod, pep=pep, in_sqMass=in_sqMass, plotPrecursor=plotPrecursor, plotIntersectingDetecting=plotIntersectingDetecting,  plotIdentifying=plotIdentifying, plotUniqueDetecting=plotUniqueDetecting, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, intersecting_mz=NULL, uni_mod_list=NULL, max_Int=max_Int, in_osw=in_osw, smooth_chromatogram=smooth_chromatogram, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, show_all_pkgrprnk=show_all_pkgrprnk, FacetFcnCall=FacetFcnCall, show_legend = show_legend ) ) } 
             if ( length(uni_mod)==1 ){ n_sample=1 } else { n_sample=2 } # @TODO: Need to figure something out for this and the line above...
-            if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ cat(crayon::red('These are not isoforms of each other... Skipping... \n')); return(list()) }
+            if ( length(unique(n_mod_sites_common))!=(length(uni_mod))/2 ){ MazamaCoreUtils::logger.error(crayon::red('These are not isoforms of each other... Skipping... \n')); return(list()) }
             uni_isoform_group_list <- lapply(n_mod_sites_common, function(isoform_group){ sample(uni_mod[grepl(paste('^',isoform_group,'$',sep=''), n_mod_sites)], n_sample) })
             
           }
@@ -216,27 +175,27 @@ XICMasterPlotFcn_ <- function( dup_peps,
           uni_mod <- stringr::str_replace_all(uni_mod, "\t|\n", "")
           osw_df %>%
             dplyr::filter( FullPeptideName %in% uni_mod) %>%
-            select( Charge ) %>%
+            dplyr::select( Charge ) %>%
             as.matrix() %>%
             mstools::Mode() -> Isoform_Target_Charge
           
           if ( length(Isoform_Target_Charge)>1 ){
             
             if ( is.null(Charge_State) ){
-              cat('* There are ', length(Isoform_Target_Charge), ' charge states.. Will Randomly sample one of the charge states...\n', sep='')
+              MazamaCoreUtils::logger.info('* There are ', length(Isoform_Target_Charge), ' charge states.. Will Randomly sample one of the charge states...\n', sep='')
               Isoform_Target_Charge <- sample(Isoform_Target_Charge,1) # @ CHANGEEE
             } else {
               Isoform_Target_Charge <- Charge_State
             }
-            cat('* Will analyze peptidoform with charge state: ', (Isoform_Target_Charge), '\n', sep='')
+            MazamaCoreUtils::logger.info('* Will analyze peptidoform with charge state: ', (Isoform_Target_Charge), '\n', sep='')
           }
           
           # Filter df_lib based on only the uni modifications with specified charge state found in OSW results
           df_lib %>%
             dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) -> df_lib
           
-          cat('Peptidoforms of Charge State ', Isoform_Target_Charge, ' to Analyze..\n', paste(uni_mod, collapse = '\n'), '\n', sep='')
-          if ( length(uni_mod)==1 & N_sample!=1 ){ cat(crayon::red('There is only 1 form... Skipping...\n')); skipped_bool=TRUE; next }
+          MazamaCoreUtils::logger.info('Peptidoforms of Charge State ', Isoform_Target_Charge, ' to Analyze..\n', paste(uni_mod, collapse = '\n'), '\n', sep='')
+          if ( length(uni_mod)==1 & N_sample!=1 ){ MazamaCoreUtils::logger.error(crayon::red('There is only 1 form... Skipping...\n')); skipped_bool=TRUE; next }
           
           
           # Display other peak group rank features
@@ -252,7 +211,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             # RT_pkgrps <- as.numeric(names(RT_Table)[RT_Table==2])
             RT_pkgrps <- as.numeric(names(RT_Table))
             if ( length(RT_pkgrps)==0 ){
-              cat(crayon::red('WARNING: There were no common RT pkgrps found, will plot all pkgrps...\n'))
+              MazamaCoreUtils::logger.warn(crayon::red('WARNING: There were no common RT pkgrps found, will plot all pkgrps...\n'))
               RT_pkgrps <- as.numeric(names(RT_Table))
             }
             rm(osw_df_all, osw_df_all_filtered, RT_Table)
@@ -314,7 +273,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             tictoc::tic(paste('   ~ Getting Top Transitions that scored a low PEP', sep=''))
             Transition_Scores <- getTransitionScores_( in_osw, run_name, precursor_id='', peptide_id=pep )
             
-            if( is.null(unique(unlist(Transition_Scores$transition_id))) ){ cat(crayon::red('These is no Transition ID information... Skipping... \n')); next  }
+            if( is.null(unique(unlist(Transition_Scores$transition_id))) ){ MazamaCoreUtils::logger.error(crayon::red('These is no Transition ID information... Skipping... \n')); next  }
             
             top_trans_mod_list <- lapply(uni_mod, function(mod, df_lib, Transition_Scores){
               df_lib %>%
@@ -328,8 +287,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
                 dplyr::filter( FullPeptideName == mod) %>%
                 dplyr::filter( !is.nan(transition_id) ) %>%
                 dplyr::filter( transition_id %in% mod_df_lib_filtered$TRANSITION_ID ) %>%
-                distinct() %>%
-                arrange( transition_pep ) -> mod_transition_scores
+                dplyr::distinct() %>%
+                dplyr::arrange( transition_pep ) -> mod_transition_scores
             }, df_lib, Transition_Scores)
             names(top_trans_mod_list) <- uni_mod
             tictoc::toc()
@@ -346,12 +305,12 @@ XICMasterPlotFcn_ <- function( dup_peps,
             transition_dt <- NULL
           }
           
-          cat('   ~ Starting Plotting Action\n', sep='')
+          MazamaCoreUtils::logger.info('   ~ Starting Plotting Action\n', sep='')
           plot_list <- list()
           max_Int <- 0
           uni_mod <- sort(uni_mod)
           for( mod in uni_mod ){ # names(uni_mod_list) ){
-            cat( crayon::green('   --- Peptidoform: ', mod), '\n', sep='')
+            MazamaCoreUtils::logger.info( crayon::green('   --- Peptidoform: ', mod), '\n', sep='')
             ###########################
             ##     PLOT PRECURSOR    ##
             ###########################
@@ -446,7 +405,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
               g <- g$graphic_obj
               
             } else {
-              cat(crayon::red('-- Identifying Transitions were not found for: ', underline(mod)), '\n', sep='')
+              MazamaCoreUtils::logger.warn(crayon::red('-- Identifying Transitions were not found for: ', crayon::underline(mod)), '\n', sep='')
             }
             
             ###################################
@@ -487,47 +446,38 @@ XICMasterPlotFcn_ <- function( dup_peps,
       }, error=function(e){
         if (grepl("reached elapsed time limit|reached CPU time limit", e$message)) {
           # we reached timeout, apply some alternative method or do something else
-          cat(crayon::red('Reached CPU Timelimit for ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
+          MazamaCoreUtils::logger.error(crayon::red('Reached CPU Timelimit for ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
         } else {
           # error not related to timeout
-          cat(crayon::red('There was an issue trying to process ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
-          stop(e)
+          MazamaCoreUtils::logger.error(crayon::red('There was an issue trying to process ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
+          stop(e$message)
         }
       }
       )
       
     }, mc.cores = parallel::detectCores()-3 ) ## mclapply
-    # }# for loop
-    # print(record_list)
-    # leh <- 0
-    # bleh = leh + 2
+
+    ##*****************************
+    ##    Save/Print Plot
+    ##*****************************
     if( length(record_list)>0){
       draw_chrom_error <- tryCatch({
         if( doPlot==T & length(record_list[[1]])!=0 ){
-          # cat( 'Length of record_list: ', length(record_list), '\n', sep='' )
-          # print( record_list 
-          # print('stop')
-          # print((record_list))
+
           ### RECORD
           store_record <- list()
           store_idx <- 1
           for ( grph_idx in seq(1,length(record_list),1) ){
-            # cat('Graph_Idx: ', grph_idx, '\n', sep ='')
             if ( !is.null(record_list[[grph_idx]]) ){
-              # cat( 'eval( !is.null(record_list[[grph_idx]]) ) -> ', !is.null(record_list[[grph_idx]]), '\n', sep ='')
               if ( length(record_list[[grph_idx]])>1 ){
-                # cat( ' if eval( length(record_list[[grph_idx]])>1 ) -> ', length(record_list[[grph_idx]])>1, '\n', sep='')
                 ## There could be multiple isoform groups for 1 peptide in 1 run
                 for ( sub_record_idx in seq(1,length(record_list[[grph_idx]]),1) ){
-                  # print('list draw')
                   grid::grid.draw(record_list[[grph_idx]][[sub_record_idx]])
                   store_record[[store_idx]] <- recordPlot()
                   store_idx <- store_idx + 1
                   graphics.off()
                 }
               } else {
-                # cat( 'else eval( length(record_list[[grph_idx]])>1 ) -> ', length(record_list[[grph_idx]])>1, '\n', sep='')
-                # print('no list draw')
                 grid::grid.draw(record_list[[grph_idx]][[1]])
                 store_record[[store_idx]] <- recordPlot()
                 store_idx <- store_idx + 1
@@ -536,6 +486,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
             }
           }
           
+          ## Save plot as PDF
+          if ( !is.null(store_plots_subdir) ){
           ## Check to see if save directory exits
           dir.create(file.path(getwd(), store_plots_subdir), showWarnings = FALSE )
           
@@ -551,8 +503,9 @@ XICMasterPlotFcn_ <- function( dup_peps,
             
           }
           graphics.off()
-          # rm(record_list)
+          }
           
+          ## Print Plot to Graphics
           if ( printPlot==T ){
             for (myplot in store_record){
               if (class(myplot)=='recordedplot'){
@@ -564,7 +517,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
         } #doPlot END BLOCK
       }, error=function(e){
         # error not related to timeout
-        cat(crayon::red('There was an issue trying to draw ', crayon::underline(pep)), '\n', sep='')
+        MazamaCoreUtils::logger.error(crayon::red('There was an issue trying to draw ', crayon::underline(pep)), '\n', sep='')
       })
     }# length of record plot list chec
   }

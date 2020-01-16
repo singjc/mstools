@@ -22,10 +22,11 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @import DBI
-#' @import RSQLite
-#' @import dplyr
-#' @import dbplyr
+#' @importFrom DBI dbConnect dbDisconnect
+#' @importFrom RSQLite SQLite 
+#' @importFrom dplyr collect tbl
+#' @importFrom dbplyr sql 
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 getTransitionScores_ <- function ( oswfile,
                                    run_name,
                                    precursor_id='',

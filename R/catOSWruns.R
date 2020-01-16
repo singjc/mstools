@@ -21,9 +21,9 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @import crayon
-#' @import dplyr
-#' @importFrom dplyr %>%
+#' @importFrom crayon blue bold underline 
+#' @importFrom dplyr %>% select filter group_by ungroup add_count 
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_filter=0.05, report_top_single_result=T, run_sub_expression=NULL, ... ){
   
   DEBUG=F
@@ -41,11 +41,16 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     
   }
   
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
+  
   list_comparisons <- lapply(sqMass_files, function( in_sqMass ){
     
     run_name <- gsub('_osw_chrom[.]sqMass', '', basename(in_sqMass))
     
-    cat( 'Reading in results for: ', crayon::blue$bold$underline(run_name), '\n', sep='' )
+    MazamaCoreUtils::logger.info( 'Reading in results for: ', crayon::blue$bold$underline(run_name), '\n', sep='' )
     # Extract OpenSwath REsults for Specfific run
     osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', ... )
     

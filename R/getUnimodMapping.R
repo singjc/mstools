@@ -17,10 +17,9 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @import dplyr
-#' @importFrom dplyr %>%
-#' @import xml2
-#' @import purrr
+#' @importFrom dplyr %>% select
+#' @importFrom xml2 read_xml xml_ns xml_find_all xml_attrs
+#' @importFrom purrr map map_df
 generateUniModMapping_ <- function( unimod_xml=NULL ){
   # library(xml2)
   # library(purrr)
@@ -56,9 +55,9 @@ generateUniModMapping_ <- function( unimod_xml=NULL ){
 #' unimodTocodename( mod_seq )
 #' ## Out
 #' ## [1] "EGHAQNPM(Oxidation)EPS(Phospho)VPQLS(Phospho)LM(Oxidation)DVK"
-#' @import plyr
+#' @importFrom plyr mapvalues
 #' @importFrom dplyr %>%
-#' @import stringr
+#' @importFrom stringr str_replace_all
 NULL
 
 #' @export
@@ -105,9 +104,9 @@ unimodTocodename <- function( mod_seq, out='sequence'){
 #' codenameTounimod ( mod_seq )
 #' ## Out
 #' ## [1] "EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
-#' @import plyr
+#' @importFrom plyr mapvalues
 #' @importFrom dplyr %>%
-#' @import stringr
+#' @importFrom stringr str_replace_all
 NULL
 
 #' @export

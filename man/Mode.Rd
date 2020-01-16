@@ -15,6 +15,3 @@ The mode of the vector
 \description{
 Get the mode for a vector
 }
-\author{
-Justin Sing \url{https://github.com/singjc}
-}

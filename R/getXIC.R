@@ -39,16 +39,16 @@
 #'
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @import ggplot2
-#' @import gridExtra
-#' @import ggpubr
-#' @import data.table
-#' @import plyr
-#' @import dplyr
-#' @importFrom dplyr %>%
-#' @import tibble
-#' @import rlang
-#' @import signal
+#' @importFrom ggplot2 ggplot geom_line geom_vline geom_rect aes guides guide_legend ggtitle labs theme element_text scale_alpha_identity scale_fill_manual 
+#' @importFrom gridExtra ttheme_default tableGrob arrangeGrob 
+#' @importFrom ggpubr as_ggplot 
+#' @importFrom data.table set
+#' @importFrom plyr mapvalues
+#' @importFrom dplyr %>% filter select bind_rows mutate group_by top_n arrange 
+#' @importFrom tibble rownames_to_column
+#' @importFrom rlang sym
+#' @importFrom signal sgolayfilt
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn 
 getXIC <- function( graphic_obj=ggplot2::ggplot(), 
                     mod, 
                     df_lib, 
@@ -76,8 +76,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     show_legend=T
 ){
   
-  cl <- match.call()
-  print(cl)
+
   
   ## Check if logging has been initialized
   if( MazamaCoreUtils::logger.isInitialized() ){
@@ -96,8 +95,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   #' @return if data.frame has 0 rows, return true, otherwise return false
   checkDataframe <- function( df, return_item, msg ){
     if ( dim(df)[1]==0 ){
-      cat(crayon::bold(crayon::red(msg)))
-      print(df)
+      MazamaCoreUtils::logger.error(crayon::bold(crayon::red(msg)))
       return( TRUE )
     } else {
       return( FALSE )
@@ -125,7 +123,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##    Extract Precursor Information from Library
   ##*******************************************************
   if ( 'precursor' %in% transition_type ){
-    cat(  '--> Extracting Precursor Transition...\n')
+    MazamaCoreUtils::logger.info(  '--> Extracting Precursor Transition...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( TYPE=="" ) %>%
@@ -137,7 +135,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##    Extract Detecting Transitions Information from Library
   ##******************************************************************
   if ( 'detecting' %in% transition_type){
-    cat(  '--> Extracting Detecting Transitions...\n')
+    MazamaCoreUtils::logger.info(  '--> Extracting Detecting Transitions...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
@@ -149,7 +147,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##    Extract Identifying Transitions Information from Library
   ##******************************************************************
   if ( 'identifying' %in% transition_type ){
-    cat(  '--> Extracting Identifying Transitions...\n')
+    MazamaCoreUtils::logger.info(  '--> Extracting Identifying Transitions...\n')
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
@@ -162,7 +160,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##******************************************************************
   
   if ( !is.null( in_osw ) ){
-    cat(  '--> Extracting OpenSwathResults Info...\n')
+    MazamaCoreUtils::logger.info(  '--> Extracting OpenSwathResults Info...\n')
     ## Filter library dataframe for matching evaluated modification sequence, precursor charge and for detecting transitions. 
     df_lib %>%
       dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
@@ -179,7 +177,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Filter for precursor id that matches target charge state
     df_lib_filtered %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
-      select( PRECURSOR_ID ) %>%
+      dplyr::select( PRECURSOR_ID ) %>%
       unique() %>% as.matrix() %>% as.numeric() -> target_charge_precursor
     ## @TODO: Need to make this more robust for later
     if( mod==mod_form_rename ){
@@ -404,7 +402,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##******************************************************** 
   ## Get Transition IDs for chromatogram data extraction
   ##********************************************************
-  cat(  '----> Getting Transition IDs and Extracting Chromatogram Data...\n')
+  MazamaCoreUtils::logger.info(  '----> Getting Transition IDs and Extracting Chromatogram Data...\n')
   frag_ids <- list()
   if( length(as.character( df_lib_filtered$TRANSITION_ID ))>1 ){
     frag_ids[[1]] <- as.character( df_lib_filtered$TRANSITION_ID )
@@ -423,7 +421,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ##    Smooth Chromatogram
     ##***************************************
     if ( length(smooth_chromatogram)>0 ){
-      cat(  '----> Smoothing Chromatogram Data...\n')
+      MazamaCoreUtils::logger.info(  '----> Smoothing Chromatogram Data...\n')
     }
     ## Smooth Intensity values to make Chromatogram look nice
     for (i in seq(1:length(chrom))){
@@ -458,7 +456,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Extraction Transtion Information
     df_lib_filtered %>% 
       dplyr::filter( TRANSITION_ID %in% unique(df_plot$Transition) ) %>%
-      select( TRANSITION_ID, PRECURSOR_CHARGE ) -> transition_info
+      dplyr::select( TRANSITION_ID, PRECURSOR_CHARGE ) -> transition_info
     
     ## Append information to Precursor Transition ID
     transition_ids <- paste( paste('0 - ',transition_info$TRANSITION_ID,sep=''), paste(transition_info$PRECURSOR_CHARGE,'+',sep=''), sep='_')
@@ -467,7 +465,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Similar to above, but extract MS2 Transition ID information
     df_lib_filtered %>% 
       dplyr::filter(  TRANSITION_ID %in% unique(df_plot$Transition) ) %>%
-      select( TRANSITION_ID, CHARGE, TYPE, ORDINAL, PRODUCT_MZ ) -> transition_info
+      dplyr::select( TRANSITION_ID, CHARGE, TYPE, ORDINAL, PRODUCT_MZ ) -> transition_info
     transition_ids <- paste( transition_info$TRANSITION_ID, paste(transition_info$CHARGE,'+',sep=''), paste(transition_info$TYPE, transition_info$ORDINAL,sep=''), transition_info$PRODUCT_MZ, sep='_')
     tmp <- sapply(seq(1,length(df_plot$Transition)), function(i){ transition_ids[grepl(paste('^',df_plot$Transition[i],'_*',sep=''), transition_ids)] } )
   }
@@ -659,10 +657,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         }
         
         tmp_plot %>%
-          group_by(TRANSITION_ID) %>%
-          top_n(n=1, wt=Int) %>%
-          arrange(desc(Int)) %>%
-          select(TRANSITION_ID) %>%
+          dplyr::group_by(TRANSITION_ID) %>%
+          dplyr::top_n(n=1, wt=Int) %>%
+          dplyr::arrange(desc(Int)) %>%
+          dplyr::select(TRANSITION_ID) %>%
           head(n=show_n_transitions_val) -> Ordered_top_Int
         
         tmp_plot %>%
@@ -744,10 +742,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         }
         
         tmp_plot %>%
-          group_by(TRANSITION_ID) %>%
-          top_n(n=1, wt=Int) %>%
-          arrange(desc(Int)) %>%
-          select(TRANSITION_ID) %>%
+          dplyr::group_by(TRANSITION_ID) %>%
+          dplyr::top_n(n=1, wt=Int) %>%
+          dplyr::arrange(desc(Int)) %>%
+          dplyr::select(TRANSITION_ID) %>%
           head(n=show_n_transitions_val) -> Ordered_top_Int
         
         tmp_plot %>%
@@ -832,10 +830,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         }
         
         tmp_plot %>%
-          group_by(TRANSITION_ID) %>%
-          top_n(n=1, wt=Int) %>%
-          arrange(desc(Int)) %>%
-          select(TRANSITION_ID) %>%
+          dplyr::group_by(TRANSITION_ID) %>%
+          dplyr::top_n(n=1, wt=Int) %>%
+          dplyr::arrange(desc(Int)) %>%
+          dplyr::select(TRANSITION_ID) %>%
           head(n=show_n_transitions_val) -> Ordered_top_Int
         
         tmp_plot %>%
@@ -887,10 +885,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         }
         
         tmp_plot %>%
-          group_by(TRANSITION_ID) %>%
-          top_n(n=1, wt=Int) %>%
-          arrange(desc(Int)) %>%
-          select(TRANSITION_ID) %>%
+          dplyr::group_by(TRANSITION_ID) %>%
+          dplyr::top_n(n=1, wt=Int) %>%
+          dplyr::arrange(desc(Int)) %>%
+          dplyr::select(TRANSITION_ID) %>%
           head(n=show_n_transitions_val) -> Ordered_top_Int
         
         tmp_plot %>%
@@ -924,10 +922,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         }
         
         tmp_plot %>%
-          group_by(TRANSITION_ID) %>%
-          top_n(n=1, wt=Int) %>%
-          arrange(desc(Int)) %>%
-          select(TRANSITION_ID) %>%
+          dplyr::group_by(TRANSITION_ID) %>%
+          dplyr::top_n(n=1, wt=Int) %>%
+          dplyr::arrange(desc(Int)) %>%
+          dplyr::select(TRANSITION_ID) %>%
           head(n=show_n_transitions_val) -> Ordered_top_Int
         
         tmp_plot %>%

@@ -30,10 +30,11 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @import DBI
-#' @import RSQLite
-#' @import dbplyr
-#' @import dplyr
+#' @importFrom DBI dbConnect dbDisconnect
+#' @importFrom RSQLite SQLite 
+#' @importFrom dplyr collect tbl
+#' @importFrom dbplyr sql 
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 getOSWData_ <- function ( oswfile,
                           run_name='',
                           precursor_id='',
@@ -48,8 +49,7 @@ getOSWData_ <- function ( oswfile,
                           ms2_score=TRUE,
                           decoy_filter=TRUE){
   
-  DEBUG=F
-  if ( DEBUG ) {
+  if ( F ) {
     # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
     # run_name <- '/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_013_SW_0.mzXML'
     # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
@@ -62,7 +62,13 @@ getOSWData_ <- function ( oswfile,
     # library(dbplyr)
   }
   
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
+  
   # Connect to database
+  MazamaCoreUtils::logger.trace(sprintf("[mstools::getOSWData_] Connecting To Database: %s\n", oswfile))
   osw_db <- DBI::dbConnect( RSQLite::SQLite(), oswfile )
   
   # Get RUN ID from database
@@ -207,7 +213,6 @@ getOSWData_ <- function ( oswfile,
   }
   
   ## Construct Query Statement
-  # print(filter_multiple_peps)
   stmt = sprintf(
     "%s
 FROM PRECURSOR
@@ -228,15 +233,15 @@ LEFT JOIN SCORE_MS2 ON SCORE_MS2.FEATURE_ID = FEATURE.ID
 ORDER BY transition_group_id,
          peak_group_rank
 ", select_as_stmt, decoy_filter_query, peptide_query, precursor_query, run_id_query, include_ipf_score, pk_grp_rnk_fil_query, filter_multiple_peps, qval_filter_query, mod_peptide_query, mod_residue_position_query)
-  
-  # cat(stmt)
-  
+
   # Query Databasse
+  MazamaCoreUtils::logger.trace(sprintf("[mstools::getOSWData_] QueryingDatabase: %s\n", stmt))
   df_osw <- dplyr::collect( dplyr::tbl(osw_db, dbplyr::sql(stmt)) )
   
-  cat("Dimensions of OSW Results file: ", dim(df_osw), "\n")
+  MazamaCoreUtils::logger.trace("[mstools::getOSWData_] Dimensions of OSW Results file: ", dim(df_osw), "\n")
   
   # Disconnect from database
+  MazamaCoreUtils::logger.trace(sprintf("[mstools::getOSWData_] Disconnecting From Database: %s\n", oswfile))
   DBI::dbDisconnect(osw_db)
   
   return( df_osw )

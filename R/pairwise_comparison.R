@@ -18,11 +18,18 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @import ggplot2
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn 
+#' @importFrom crayon blue red underline magenta bold 
 pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
+  
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
+  
   DEBUG=FALSE
   if ( length(x) >2 ){
-    cat(red$bold$underline('Warning! There is more than 2 values, will only use first 2!\n'))
+    MazamaCoreUtils::logger.warn(red$bold$underline('Warning! There is more than 2 values, will only use first 2!\n'))
   }
   if (out=='delta'){
     return( abs( x[1] - x[2]) )
@@ -58,16 +65,8 @@ pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
         
         P_overlap = abs( (A_overlap) / (A1+A2-A_overlap) )
         
-        if ( DEBUG ){
-          ggplot2::ggplot( data.frame(x=c(x$leftWidth, x$rightWidth), region=as.factor(c(1,2,1,2))) ) +
-            ggplot2::geom_vline( ggplot2::aes(xintercept=x, col=region) )
-        }
       }
       
-      if ( DEBUG ){
-        ggplot2::ggplot( data.frame(x=c(x$leftWidth, x$rightWidth), region=as.factor(c(1,2,1,2))) ) +
-          ggplot2::geom_vline( ggplot2::aes(xintercept=x, col=region) )
-      }
     }
     
     return( ifelse(P_overlap > P_overlap_threshold, 'same', 'diff') )
@@ -103,13 +102,9 @@ pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
       
       P_overlap = abs( (A_overlap) / (A1+A2-A_overlap) )
       
-      if ( DEBUG ){
-        ggplot2::ggplot( data.frame(x=c(x$leftWidth, x$rightWidth), region=as.factor(c(1,2,1,2))) ) +
-          ggplot2::geom_vline( ggplot2::aes(xintercept=x, col=region) )
-      }
     }
     return( P_overlap )
   } else {
-    cat(red(underline(out), ' is not a valid option. One of: {"delta","strcat","isequal, samePeak, percentOverlap"}'))
+    MazamaCoreUtils::logger.error(red(underline(out), ' is not a valid option. One of: {"delta","strcat","isequal, samePeak, percentOverlap"}'))
   }
 }

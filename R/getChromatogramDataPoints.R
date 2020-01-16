@@ -19,20 +19,21 @@
 #' @return A list of fragment ids containing 2 arrays for Retention time and Intensity
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
-#' 
+#'
+#' @importFrom DBI dbConnect dbDisconnect
+#' @importFrom RSQLite SQLite 
+#' @importFrom dplyr collect tbl
+#' @importFrom dbplyr sql 
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn 
 #' @importFrom tools file_ext
-#' @import MazamaCoreUtils
-#' @import crayon
-#' @import dplyr
-#' @importFrom dplyr %>%
-#' @import dbplyr
-#' @import RSQLite
-#' @import DBI
+#' @importFrom crayon blue bold underline red 
 #' @import reticulate
-#' @import mzR
+#' @importFrom mzR openMSfile chromatogramHeader chromatograms 
 getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
-  ## Setup Logging
-  log_setup()
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
   
   ## Get File Extension Type
   fileType <- (tools::file_ext(filename))
@@ -46,7 +47,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
       frag_ids[[1]] <- c("7788", "7789", "7790", "7791", "7792", "7793")
     }
     
-    cat('Reading in chromatogram of ', crayon::blue$bold$underline('sqmass type.\n', sep=''))
+    MazamaCoreUtils::logger.info('[mstools::getChromatogramDataPoints_]\tReading in chromatogram of ', crayon::blue$bold$underline('sqmass type.\n', sep=''))
     
     ##*********************************************
     ##      Python Setup
@@ -55,7 +56,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
     if ( !reticulate::py_available()  ){
       find_python()
       install_python_dependencies()
-      MazamaCoreUtils::logger.info( "** Loading Python Modules **")
+      MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** Loading Python Modules **")
       .onload()
     }
     
@@ -64,6 +65,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
     ##********************************************
     
     # Connect to database
+    MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] Connecting to Database: %s", filename)
     sqmass_db <- DBI::dbConnect( RSQLite::SQLite(), filename )
     
     ##*********************************************************************
@@ -81,6 +83,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
     sql_query <- paste(sql_query, ')', sep='')
     
     # Query Databasse
+    MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] Querying Database: %s", sql_query)
     chrom_index_df <- dplyr::collect( dplyr::tbl(sqmass_db, dbplyr::sql(sql_query)) )
     colnames(chrom_index_df) <- c('CHROMATOGRAM_ID', 'RUN_ID', 'FRAGMENT_ID')
     
@@ -92,15 +95,15 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
         - data_type is one of 0 = mz, 1 = int, 2 = rt
         - data contains the raw (blob) data for a single data array
     "
-    MazamaCoreUtils::logger.info( "** saMass: Extracting Chromatogram data from database **")
+    MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** saMass: Extracting Chromatogram data from database **")
     stmt <- "SELECT CHROMATOGRAM_ID, COMPRESSION, DATA_TYPE, DATA FROM DATA WHERE CHROMATOGRAM_ID IN ("
     for ( myid in as.matrix(chrom_index_df[,1]) ){
       stmt <- paste( stmt,  myid, ",", sep='' )
     }
     stmt <- substr(stmt,1,nchar(stmt)-1)
     stmt <- paste(stmt, ')', sep='')
-    
-    data <- dplyr::collect( dplyr::tbl(sqmass_db, dplyr::sql(stmt)) )
+    MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] Querying Database: %s", stmt)
+    data <- dplyr::collect( dplyr::tbl(sqmass_db, dbplyr::sql(stmt)) )
     
     data <- merge(data, chrom_index_df, by="CHROMATOGRAM_ID")
     
@@ -131,19 +134,16 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
       } else if ( data_row$DATA_TYPE == 2){
         chrom[[ data_row$FRAGMENT_ID ]]$RT = result
       } else {
-        message("Only expected RT or Intensity data for chromatogram")
+        MazamaCoreUtils::logger.error("[mstools::getChromatogramDataPoints_] Only expected RT or Intensity data for chromatogram. Expected DATA_TYPE to be 1 or 2, instead got %s", data_row$DATA_TYPE )
       }
     }
     
     # Disconnect from database
+    MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] Disconnecting From Database: %s", filename)
     DBI::dbDisconnect(sqmass_db)
     
     return(chrom)
-    # } else {
-    # cat( crayon::red$bold$underline(fileType, ' FileType is not supported yet, coming soon!!\n'), sep='')
-    # }
-    
-    
+   
   } else if ( tolower(fileType)=='mzml' ){
     if ( F ){
       filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR/inst/extdata/mzml/chludwig_K150309_013_SW_0.chrom.mzML"
@@ -151,23 +151,23 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
       filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/mzML_Chroms_Decomp/chludwig_K150309_013_SW_0_osw_chrom.mzML"
     }
     # Read in an mzML chromatogram --------------------------------------------
-    cat('Reading in chromatogram of ', crayon::blue$bold$underline('mzML type.\n', sep=''))
-    MazamaCoreUtils::logger.info( "** mzR: Loading mzML chromatogram into mz_object **")
+    MazamaCoreUtils::logger.info('[mstools::getChromatogramDataPoints_] Reading in chromatogram of ', crayon::blue$bold$underline('mzML type.\n', sep=''))
+    MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** mzR: Loading mzML chromatogram into mz_object **")
     # Create an mzR object that stores all header information, and use ProteoWizard api to access data from MzML file
     mz_object <- mzR::openMSfile(filename, backend = "pwiz", verbose = T)
     # Get header information for chromtagograms
     chromHead <- mzR::chromatogramHeader(mz_object)
-    MazamaCoreUtils::logger.info( "** mzR: Extracting chromatogram indices **")
+    MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** mzR: Extracting chromatogram indices **")
     # Extract all the indices of chromatograms that match the transition names of the ones found in the TargetPetides file
     chromatogramIndices <- chromHead$chromatogramIndex[ match(frag_ids[[1]], chromHead$chromatogramId)  ]
-    MazamaCoreUtils::logger.info( "** mzR: Extracting chromatographic data **")
+    MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** mzR: Extracting chromatographic data **")
     # Check how many chromatogramIndices are present to extract
     if ( length(chromatogramIndices)==1 ){
       rawChrom <- list(mzR::chromatograms(mz_object, chromatogramIndices))
     } else if ( length(chromatogramIndices)>1 ) {
       rawChrom <- mzR::chromatograms(mz_object, chromatogramIndices)
     } else {
-      cat( crayon::red$bold$underline('There was no Chromatogramphic data for the following fragment(s): ', base::paste(frag_ids[[1]], collapse = ', ')), sep='')
+      MazamaCoreUtils::logger.error( crayon::red$bold$underline('[mstools::getChromatogramDataPoints_] There was no Chromatogramphic data for the following fragment(s): ', base::paste(frag_ids[[1]], collapse = ', ')), sep='')
     }
     chrom <- list(); rawChrom_idx <- 1
     for ( fragment_id in frag_ids[[1]] ){
@@ -178,6 +178,6 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
     rm(mz_object)
     return(chrom)
   } else {
-    cat( crayon::red$bold$underline(fileType, ' FileType is not supported!!\n'), sep='')
+    MazamaCoreUtils::logger.error( crayon::red$bold$underline(fileType, '[mstools::getChromatogramDataPoints_] FileType is not supported!!\n'), sep='')
   }
 } ## End Function

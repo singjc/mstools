@@ -1,9 +1,11 @@
 ## Install python dependency
 #' @import reticulate
-#' @import MazamaCoreUtils
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn 
 find_python <- function(){
-  ## Setup Logging
-  log_setup()
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
   
   MazamaCoreUtils::logger.info(  "** Finding Python **"  )
   # "/home/justincsing/anaconda3/envs/mstools_test/"
@@ -18,11 +20,13 @@ find_python <- function(){
 }
 
 #' @import reticulate
-#' @import MazamaCoreUtils
+#' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn 
 install_python_dependencies <- function(method = "auto", conda = "auto") {
   
-  ## Setup Logging
-  log_setup()
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
   MazamaCoreUtils::logger.info( "** Checking for Required Python Modules ** ")
   
   ## Check for available versions of python
@@ -60,7 +64,7 @@ install_python_dependencies <- function(method = "auto", conda = "auto") {
 #' @import reticulate
 python_dummy_modules <- function() {
   # Load the module and create dummy objects from it, all of which are NULL
-  pymsnumpress <- reticulate::import( "PyMSNumpress", delay_load = FALSE, convert = FALSE )
+  pymsnumpress <- reticulate::import( "PyMSNumpress", delay_load = TRUE, convert = FALSE )
   for (obj in c("decodeLinear", "decodeSlof") ) {
     assign(obj, NULL)
   }
@@ -68,7 +72,7 @@ python_dummy_modules <- function() {
   rm(pymsnumpress)
   
   # Load the module and create dummy objects from it, all of which are NULL
-  pyzlib <- reticulate::import( "zlib", delay_load = FALSE, convert = FALSE )
+  pyzlib <- reticulate::import( "zlib", delay_load = TRUE, convert = FALSE )
   for (obj in c("compress","decompress")) {
     assign(obj, NULL)
   }
