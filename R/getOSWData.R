@@ -38,7 +38,7 @@ getOSWData_ <- function ( oswfile,
                           run_name='',
                           precursor_id='',
                           peptide_id='',
-                          mod_peptide_id='',
+                          mod_peptide_id=c('',''),
                           mod_residue_position='',
                           peak_group_rank_filter=FALSE, 
                           pep_list='',
@@ -82,7 +82,7 @@ getOSWData_ <- function ( oswfile,
   } else {
     peptide_query = 'INNER JOIN PEPTIDE ON PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID = PEPTIDE.ID'
   }
-  if (mod_peptide_id!=''){
+  if ( mod_peptide_id[1]!='' & mod_peptide_id[2]!='' ){
     if( ipf_score == TRUE){
       mod_peptide_query = sprintf("WHERE PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s') OR PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s')", mod_peptide_id[1], mod_peptide_id[2]) # PEPTIDE.MODIFIED_SEQUENCE use to correspond with PEPTIDE_IPF.MODIFIED_SEQUENCE. @ Justin
     } else {

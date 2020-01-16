@@ -29,6 +29,7 @@ XICMasterPlotFcn_(
   use_top_trans_pep = F,
   transition_selection_list = NULL,
   show_n_transitions = NULL,
+  show_transition_scores = FALSE,
   show_all_pkgrprnk = T,
   show_peak_info_tbl = F,
   show_manual_annotation = NULL,
@@ -83,6 +84,8 @@ XICMasterPlotFcn_(
 \item{transition_selection_list}{A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )}
 
 \item{show_n_transitions}{A numeric value. Show n number of transitions}
+
+\item{show_transition_scores}{A logical value. If set to TRUE, will include TRANSITION PEPs as text tag when using interactive plotly.}
 
 \item{show_all_pkgrprnk}{A logical value. Show all feature peak-group ranks. Usually 5. (Default: 5)}
 

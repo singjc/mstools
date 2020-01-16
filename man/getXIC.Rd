@@ -9,8 +9,10 @@ getXIC(
   mod,
   df_lib,
   chromatogram_file,
+  chromatogram_data_points_list = NULL,
   Isoform_Target_Charge,
   in_osw = NULL,
+  annotate_best_pkgrp = TRUE,
   transition_type = c("detecting"),
   uni_mod_list = NULL,
   max_Int = NULL,
@@ -26,6 +28,7 @@ getXIC(
   plotIdentifying.Shared = NULL,
   plotIdentifying.Against = NULL,
   show_n_transitions = NULL,
+  transition_dt = NULL,
   show_legend = T
 )
 }
@@ -38,7 +41,11 @@ getXIC(
 
 \item{chromatogram_file}{A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)}
 
+\item{chromatogram_data_points_list}{(Optional) Pass a list containing chromatogram data.}
+
 \item{in_osw}{A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?}
+
+\item{annotate_best_pkgrp}{Annotate the ebst peak group}
 
 \item{transition_type}{A vector containing possible choices for dispalying one of the following transition group types. getXIC needs to be called for each option (Options: c('precursor', 'detecting', 'identifying') )}
 
@@ -67,6 +74,8 @@ getXIC(
 \item{plotIdentifying.Against}{A logical value. TRUE will plot against identifying transitions. (Default: NULL)}
 
 \item{show_n_transitions}{A numeric value indicating the number of transitions to draw. (Default: NULL, default is 6 transitions)}
+
+\item{transition_dt}{A data.table containing TRANSITION_SCORE Information obtained from the OSW file using getTransitionScores_. (Default: NULL)}
 
 \item{show_legend}{A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)}
 

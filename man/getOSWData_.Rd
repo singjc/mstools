@@ -9,7 +9,7 @@ getOSWData_(
   run_name = "",
   precursor_id = "",
   peptide_id = "",
-  mod_peptide_id = "",
+  mod_peptide_id = c("", ""),
   mod_residue_position = "",
   peak_group_rank_filter = FALSE,
   pep_list = "",

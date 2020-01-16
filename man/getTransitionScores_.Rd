@@ -4,7 +4,13 @@
 \alias{getTransitionScores_}
 \title{Extract Transition Information from .osw results file}
 \usage{
-getTransitionScores_(oswfile, run_name, precursor_id = "", peptide_id = "")
+getTransitionScores_(
+  oswfile,
+  run_name,
+  precursor_id = "",
+  peptide_id = "",
+  mod_peptide_id = c("", "")
+)
 }
 \arguments{
 \item{oswfile}{A character vector of the absolute path and filename of the osw results file. (Must be .osw format)}
@@ -14,6 +20,8 @@ getTransitionScores_(oswfile, run_name, precursor_id = "", peptide_id = "")
 \item{precursor_id}{A numeric value for a specific precursor id to extract information for. (Default: '')}
 
 \item{peptide_id}{A string vector indicatig a specific peptide to extract information for. (Default: '')}
+
+\item{mod_peptide_id}{An array of two string vectors indicating a specific modified peptide sequence with both UniMod annotation and actual modification name to extract information for. I.e. c(ANS(Phos)SNSLK, ANS(UniMod:21)SNSLK) (Default: '')}
 }
 \value{
 A data.table containing Transition IDs and Transition Posterior Error Probabilities, and other useful information. Similar to getOSWData.R.

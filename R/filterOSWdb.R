@@ -31,10 +31,14 @@ filterOSWdb <- function( osw_file, unmodified_sequence_filter) {
     unmodified_sequence_filter <- c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')
   }
   
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
+  
   tryCatch(
     expr = {
-      ## Setup Logging
-      mstools:::log_setup()
+
       ## Get and Evaluate File Extension Type to ensure an osw file was supplied
       fileType <- tools::file_ext(osw_file)
       if( tolower(fileType)!='osw' ){
@@ -218,7 +222,7 @@ filterOSWdb <- function( osw_file, unmodified_sequence_filter) {
       DBI::dbDisconnect( db )
     },
     error = function(e){
-      MazamaCoreUtils::logger.error("filterOSWdb.R: There was the following error that occured during function call...\n", e)
+      MazamaCoreUtils::logger.error(sprintf("[mstools::filterOSWdb] There was the following error that occured during function call: %s\n", e$message))
     }
   ) # End tryCatch
 } # End function

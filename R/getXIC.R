@@ -15,7 +15,9 @@
 #' @param mod A character vector for specific peptide/modified peptide to extract I.e. 'ANSSPTTNIDHLK'/'ANS(UniMod:21)SPTTNIDHLK(UniMod:259)'. The MODIFIED_SEQUENCE column is used
 #' @param df_lib A data.table containing spectral library information
 #' @param chromatogram_file A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)
+#' @param chromatogram_data_points_list (Optional) Pass a list containing chromatogram data.
 #' @param in_osw A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?
+#' @param annotate_best_pkgrp Annotate the ebst peak group
 #' @param transition_type A vector containing possible choices for dispalying one of the following transition group types. getXIC needs to be called for each option (Options: c('precursor', 'detecting', 'identifying') )
 #' @param unit_mod_list A list of potential modifiable forms. (Default: NULL)
 #' @param max_Int A numeric value indicating the maximum intensity. This is used for FacetZooming the y-axis. (Default: NULL)
@@ -31,6 +33,7 @@
 #' @param plotIdentifying.Shared A logical value. TRUE will plot shared identifying transitions. (Default: NULL)
 #' @param plotIdentifying.Against A logical value. TRUE will plot against identifying transitions. (Default: NULL)
 #' @param show_n_transitions A numeric value indicating the number of transitions to draw. (Default: NULL, default is 6 transitions)
+#' @param transition_dt A data.table containing TRANSITION_SCORE Information obtained from the OSW file using getTransitionScores_. (Default: NULL)
 #' @param show_legend A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #'
@@ -40,6 +43,7 @@
 #' @import gridExtra
 #' @import ggpubr
 #' @import data.table
+#' @import plyr
 #' @import dplyr
 #' @importFrom dplyr %>%
 #' @import tibble
@@ -49,8 +53,10 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     mod, 
                     df_lib, 
                     chromatogram_file, 
+                    chromatogram_data_points_list=NULL,
                     Isoform_Target_Charge, 
                     in_osw=NULL, 
+                    annotate_best_pkgrp=TRUE,
                     transition_type=c('detecting'), 
                     uni_mod_list=NULL, 
                     max_Int=NULL, 
@@ -66,8 +72,17 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     plotIdentifying.Shared=NULL, 
                     plotIdentifying.Against=NULL,
                     show_n_transitions=NULL,
+                    transition_dt=NULL,
                     show_legend=T
 ){
+  
+  cl <- match.call()
+  print(cl)
+  
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
+  }
   
   # filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/mzML_Chroms_Decomp/chludwig_K150309_013_SW_0_osw_chrom.mzML"
   
@@ -214,17 +229,24 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     }
     ## Extract some useful scores
     m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
+    prec_pkgrp_pep <- checkNumeric( osw_df_filtered$precursor_pep[[1]] )
     ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
     ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
     ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]], signif.not=F )
     ##****************************************************
     ## Append OSW information to Chromatogram ggplot.
     ##****************************************************
-    graphic_obj <- graphic_obj +
-      geom_vline(xintercept = osw_df_filtered$RT, color='red', size = 1.5 ) +
-      geom_vline(xintercept = osw_df_filtered$leftWidth, color='red', linetype='dotted', size=1 ) +
-      geom_vline(xintercept = osw_df_filtered$rightWidth, color='red', linetype='dotted', size=1 ) + # default size 0.65
-      ggtitle(  mod ) +
+    if ( annotate_best_pkgrp ) {
+      graphic_obj <- graphic_obj +
+        # geom_vline(xintercept = osw_df_filtered$RT, color='red', size = 1.3, alpha = 0.65 ) +
+        geom_vline(data = osw_df_filtered, aes(xintercept = osw_df_filtered$RT, text = sprintf("Peak RT: %s\nLeft Width: %s\nRight Width: %s\nPeak Rank: %s\nms2_m-score: %s\nprec-pkgrp pep: %s\nipf pep: %s\nipf_m-score: %s",
+                                                                                               osw_df_filtered$RT, round(osw_df_filtered$leftWidth,3), round(osw_df_filtered$rightWidth,3), ms2_pkgrp_rank,
+                                                                                               checkNumeric(m_score), checkNumeric(prec_pkgrp_pep), checkNumeric(ipf_pep), checkNumeric(ipf_m_score) )), color='red', size = 1.3, alpha = 0.65 ) +
+        geom_vline(xintercept = osw_df_filtered$leftWidth, color='red', linetype='dotted', size=1, alpha = 0.85 ) +
+        geom_vline(xintercept = osw_df_filtered$rightWidth, color='red', linetype='dotted', size=1, alpha = 0.85 )  # default size 0.65
+    }
+    ## Append title and subtitle information
+    graphic_obj <- graphic_obj + ggtitle(  mod ) +
       labs(subtitle = paste(
         'Run: ', run, 
         ' | Precursor: ', df_lib_filtered$PRECURSOR_ID,
@@ -249,37 +271,37 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_RT_pkgrps %>%
         dplyr::filter( RT %in% RT_pkgrps ) %>%
         dplyr::filter( RT != osw_df_filtered$RT ) %>%
-        dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, ipf_pep, m_score ) -> osw_RT_pkgrps_filtered
+        dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, ipf_pep, m_score, precursor_pep ) -> osw_RT_pkgrps_filtered
       if ( dim(osw_RT_pkgrps_filtered)[1]!=0 ){
         # Define unique set of colors to annotate different peak rank groups
         jBrewColors <- RColorBrewer::brewer.pal(n = dim(osw_RT_pkgrps_filtered)[1], name = "Dark2")
-        # Y intcrements
-        y_increment = 0
-        for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
-          ## get scores and format them                                                                                                             
-          rank <- osw_RT_pkgrps_filtered$peak_group_rank[RT_idx]                                                                      
-          ms2_m_score <- formatC(osw_RT_pkgrps_filtered$ms2_m_score[RT_idx], format = "e", digits = 3)                                
-          ipf_pep <- formatC(osw_RT_pkgrps_filtered$ipf_pep[RT_idx], format = "e", digits = 3)                                                       
-          ipf_m_score <- formatC(osw_RT_pkgrps_filtered$m_score[RT_idx], format = "e", digits = 3) 
-          point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
-                                        RT_m = round((osw_RT_pkgrps_filtered$RT[RT_idx])/60, digits=2),
-                                        # y=((max(max_Int)/ 4 )-y_increment),
-                                        rank = rank, 
-                                        ms2_m_score = ms2_m_score,
-                                        ipf_pep = ipf_pep,
-                                        ipf_m_score = ipf_m_score
-                                        # y=((1000)-y_increment),
-                                        #label=paste('Rank:',osw_RT_pkgrps_filtered$peak_group_rank[RT_idx],'\n',osw_RT_pkgrps_filtered$RT[RT_idx],sep=' ')
-          )
-          graphic_obj <- graphic_obj +
-            geom_vline(xintercept = osw_RT_pkgrps_filtered$RT[RT_idx], color=jBrewColors[RT_idx], alpha=0.65, size = 1.5 ) +
-            geom_vline(xintercept = osw_RT_pkgrps_filtered$leftWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) +
-            geom_vline(xintercept = osw_RT_pkgrps_filtered$rightWidth[RT_idx], color=jBrewColors[RT_idx], linetype='dotted', alpha=0.85, size=1 ) 
-          # geom_rect( aes(xmin=osw_RT_pkgrps_filtered$leftWidth[RT_idx], xmax=osw_RT_pkgrps_filtered$rightWidth[RT_idx], ymin=0, ymax=Inf), col=jBrewColors[RT_idx], fill=jBrewColors[RT_idx], alpha=0.5) +
-          # geom_label(data=point_dataframe, aes(x=RT, y=y,label=label), alpha=0.7, fill=jBrewColors[RT_idx], size=3)
-          y_increment = y_increment + 500
-          
-          if ( show_peak_info_tbl ){
+        
+        osw_RT_pkgrps_filtered$Color <- jBrewColors[seq(1, dim(osw_RT_pkgrps_filtered)[1]) ]
+        
+        graphic_obj <- graphic_obj +
+          geom_vline(data = osw_RT_pkgrps_filtered, aes(xintercept = RT, text = sprintf("Peak RT: %s\nLeft Width: %s\nRight Width: %s\nPeak Rank: %s\nms2_m-score: %s\nprec-pkgrp pep: %s\nipf pep: %s\nipf_m-score: %s",
+                                                                                        RT, round(leftWidth, 3), round(rightWidth, 3), peak_group_rank,
+                                                                                        checkNumeric(ms2_m_score), checkNumeric(precursor_pep), checkNumeric(ipf_pep), checkNumeric(m_score) )), color=osw_RT_pkgrps_filtered$Color, alpha=0.65, size = 1.3 ) +
+          geom_vline(data = osw_RT_pkgrps_filtered, aes(xintercept = leftWidth), color=osw_RT_pkgrps_filtered$Color, linetype='dotted', alpha=0.85, size=1 ) +
+          geom_vline(data = osw_RT_pkgrps_filtered, aes(xintercept = rightWidth), color=osw_RT_pkgrps_filtered$Color, linetype='dotted', alpha=0.85, size=1 ) 
+        
+        if ( show_peak_info_tbl ){
+          for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
+            ## get scores and format them                                                                                                             
+            rank <- osw_RT_pkgrps_filtered$peak_group_rank[RT_idx]                                                                      
+            ms2_m_score <- formatC(osw_RT_pkgrps_filtered$ms2_m_score[RT_idx], format = "e", digits = 3)      
+            prec_pkgrp_pep <- checkNumeric( osw_RT_pkgrps_filtered$precursor_pep[RT_idx] )
+            ipf_pep <- formatC(osw_RT_pkgrps_filtered$ipf_pep[RT_idx], format = "e", digits = 3)                                                       
+            ipf_m_score <- formatC(osw_RT_pkgrps_filtered$m_score[RT_idx], format = "e", digits = 3) 
+            point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
+                                          RT_m = round((osw_RT_pkgrps_filtered$RT[RT_idx])/60, digits=2),
+                                          rank = rank, 
+                                          ms2_m_score = ms2_m_score,
+                                          ipf_pep = ipf_pep,
+                                          ipf_m_score = ipf_m_score
+            )
+            
+            
             #****************************************************                                                                                       
             # Check to see if master annotation table exits                                                                                             
             #****************************************************                                                                                       
@@ -288,8 +310,11 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
             } else {                                                                                                                                    
               master_annotation_table <- rbind(master_annotation_table, point_dataframe)                                                                
             }
-          } # End show_peak_info_tbl
-        } # End for loop
+            
+            ## Clearup
+            # rm(osw_RT_pkgrps_filtered_subset)
+          } # End for loop
+        } # End show_peak_info_tbl
         
         if ( show_peak_info_tbl ){
           theme_col <- gridExtra::ttheme_default(core = list(fg_params = list( col = c( jBrewColors )),                                                                                                                                                                                                            
@@ -387,32 +412,54 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     frag_ids[[1]] <- list(as.character( df_lib_filtered$TRANSITION_ID ))
   }
   
-  ##***************************************
-  ##    Extract Chromatogram Data    
-  ##***************************************
-  chrom <- getChromatogramDataPoints_( chromatogram_file, frag_ids  )
-  
-  ##***************************************
-  ##    Smooth Chromatogram
-  ##***************************************
-  if ( length(smooth_chromatogram)>0 ){
-    cat(  '----> Smoothing Chromatogram Data...\n')
-  }
-  ## Smooth Intensity values to make Chromatogram look nice
-  for (i in seq(1:length(chrom))){
-    names(chrom[[i]]) <- c('RT','Int')
+  if ( is.null(chromatogram_data_points_list) ) {
+    
+    ##***************************************
+    ##    Extract Chromatogram Data    
+    ##***************************************
+    chrom <- getChromatogramDataPoints_( chromatogram_file, frag_ids  )
+    
+    ##***************************************
+    ##    Smooth Chromatogram
+    ##***************************************
     if ( length(smooth_chromatogram)>0 ){
-      chrom[[i]]$Int <- signal::sgolayfilt( chrom[[i]]$Int, p = smooth_chromatogram$p, n = smooth_chromatogram$n )
+      cat(  '----> Smoothing Chromatogram Data...\n')
     }
+    ## Smooth Intensity values to make Chromatogram look nice
+    for (i in seq(1:length(chrom))){
+      names(chrom[[i]]) <- c('RT','Int')
+      if ( length(smooth_chromatogram)>0 ){
+        chrom[[i]]$Int <- signal::sgolayfilt( chrom[[i]]$Int, p = smooth_chromatogram$p, n = smooth_chromatogram$n )
+      }
+    }
+    ## Combine list of Intensity dataframs and Retention Time dataframes into one Dataframe mapping by Transition ID 
+    df_plot <- dplyr::bind_rows(parallel::mclapply(chrom, data.frame), .id='Transition')
+  } else {
+    
+    if ( F ){
+      tmp <- AlignObjOutput$`ANSS(UniMod:21)PTTNIDHLK(UniMod:259)_2`[["chludwig_K150309_013_SW_0"]]
+      names(tmp) <- unlist(lapply(tmp, function(x){ gsub("^X*", "", names(x)[2]) }))
+      
+      for (i in seq(1:length(tmp))){
+        names(tmp[[i]]) <- c('RT','Int')
+        if ( length(smooth_chromatogram)>0 ){
+          tmp[[i]]$Int <- signal::sgolayfilt( tmp[[i]]$Int, p = smooth_chromatogram$p, n = smooth_chromatogram$n )
+        }
+      }
+    }
+    
+    ## Combine list of Intensity dataframs and Retention Time dataframes into one Dataframe mapping by Transition ID 
+    df_plot <- dplyr::bind_rows(parallel::mclapply(chromatogram_data_points_list, data.frame), .id='Transition')
+    
   }
-  ## Combine list of Intensity dataframs and Retention Time dataframes into one Dataframe mapping by Transition ID 
-  df_plot <- dplyr::bind_rows(parallel::mclapply(chrom, data.frame), .id='Transition')
+  
   ## Append Transition information to Int-RT dataframe, filter for precursor transition or MS2 transitions 
   if ( transition_type=='precursor' ){
     ## Extraction Transtion Information
     df_lib_filtered %>% 
       dplyr::filter( TRANSITION_ID %in% unique(df_plot$Transition) ) %>%
       select( TRANSITION_ID, PRECURSOR_CHARGE ) -> transition_info
+    
     ## Append information to Precursor Transition ID
     transition_ids <- paste( paste('0 - ',transition_info$TRANSITION_ID,sep=''), paste(transition_info$PRECURSOR_CHARGE,'+',sep=''), sep='_')
     tmp <- sapply(seq(1,length(df_plot$Transition)), function(i){ transition_ids[grepl(paste('0 - ',df_plot$Transition[i],'_*',sep=''), transition_ids)] } )
@@ -426,6 +473,48 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   }
   df_plot$TRANSITION_ID <- df_plot$Transition
   df_plot$Transition <- tmp
+  
+  if ( !is.null(transition_dt) ){
+    
+    transition_dt %>%
+      base::unique() %>%
+      dplyr::filter( transition_id %in% base::unique(df_plot$TRANSITION_ID) ) -> transition_dt_subset
+    if ( dim(transition_dt_subset)[1]!=0 ) {
+      ## Pre-Assign Vars in Table as NaN
+      df_plot$RT.Map <- NaN
+      ### Get pk borders for features.
+      # pk_borders <- unique( dplyr::select( transition_dt_subset, c(leftWidth, rightWidth) ) )
+      ## Get a RT.Mapping corresponding to peaks
+      for( row in seq(1,dim(transition_dt_subset)[1]) ) {
+        ## Subset for row_i
+        current_pk_transition_dt <- transition_dt_subset[row,]
+        ## Replace NaN where continuous RT is withing range of current peak borders
+        df_plot$RT.Map[ findInterval(df_plot$RT, c(current_pk_transition_dt$RT-10, current_pk_transition_dt$RT+10))==1 ] <- current_pk_transition_dt$RT
+      }
+      ## Assign Vars as RT.Map to replace values with actual values
+      df_plot$pep <- paste(df_plot$TRANSITION_ID, df_plot$RT.Map, sep="_")
+      df_plot$pval <- paste(df_plot$TRANSITION_ID, df_plot$RT.Map, sep="_")
+      df_plot$qval <- paste(df_plot$TRANSITION_ID, df_plot$RT.Map, sep="_")
+      df_plot$score <- paste(df_plot$TRANSITION_ID, df_plot$RT.Map, sep="_")
+      ## Update Values With Actual Values
+      df_plot$pep <- plyr::mapvalues(df_plot$pep, from = paste(transition_dt_subset$transition_id, transition_dt_subset$RT, sep="_"), to = transition_dt_subset$transition_pep, warn_missing = FALSE)
+      df_plot$pval <- plyr::mapvalues(df_plot$pval, from = paste(transition_dt_subset$transition_id, transition_dt_subset$RT, sep="_"), to = transition_dt_subset$transition_pval, warn_missing = FALSE)
+      df_plot$qval <- plyr::mapvalues(df_plot$qval, from = paste(transition_dt_subset$transition_id, transition_dt_subset$RT, sep="_"), to = transition_dt_subset$transition_qval, warn_missing = FALSE)
+      df_plot$score <- plyr::mapvalues(df_plot$score, from = paste(transition_dt_subset$transition_id, transition_dt_subset$RT, sep="_"), to = transition_dt_subset$tranistion_score, warn_missing = FALSE)
+      ## Text to Display in Interactive Mode
+      text_info <- sprintf("Transition: %s\nPk_Grp_RT: %s\nPEP: %s\npval: %s\nqval: %s\nscore: %s", 
+                           df_plot$Transition, 
+                           df_plot$RT.Map, 
+                           checkNumeric(df_plot$pep), 
+                           checkNumeric(df_plot$pval), 
+                           checkNumeric(df_plot$qval), 
+                           checkNumeric(df_plot$score) )
+    } else {
+      text_info <- sprintf("Transition: %s", df_plot$Transition)
+    }
+  } else {
+    text_info <- sprintf("Transition: %s", df_plot$Transition)
+  }
   
   ##****************************
   ## Check Max Intensity
@@ -443,7 +532,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Plotting PRECURSOR Trace
     ##*********************************
     graphic_obj <- graphic_obj + 
-      geom_line( data=df_plot, aes(RT, Int, group=Transition, alpha=0.65, text=paste('Transition: ', Transition, sep='')), show.legend = show_legend, linetype='solid', col='black' )  +
+      geom_line( data=df_plot, aes(RT, Int, group=Transition, alpha=0.65, text=text_info), show.legend = show_legend, linetype='solid', col='black' )  +
       scale_alpha_identity(name="Precursor", guide='legend', labels=unique(df_plot$Transition))
   } else if ( transition_type=='detecting' ){
     ##*********************************
@@ -720,7 +809,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
             ), collapse = '|' ), sep="|" )
           }
           ion_series_keep_regex <- gsub("^\\|", "", ion_series_keep_regex)
-          
+          message(sprintf("Chosen Identifying Transitions: %s", ion_series_keep_regex))
           df_plot %>%
             dplyr::filter(
               grepl( glob2rx( ion_series_keep_regex ), gsub('.*\\{.*}_\\d+.\\d+_\\d+.\\d+_-\\d+.*_([abcxyz0-9]+).*', '\\1', df_plot$TRAML_ID)
@@ -729,47 +818,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           
         }
         
-        # mods_present <- names(uni_mod_list)
-        # alternate_mod <- mods_present[ !( mods_present %in% mod)]
-        # alternate_mod_index <- unlist(lapply(alternate_mod, getModificationPosition_))
-        # current_mod_index <- getModificationPosition_(mod)
-        
-        # identification_traml_ids <- str_split( gsub('.*\\{|\\}.*', '', df_plot$TRAML_ID), '\\|' )
-        # current_mod_transitions <- unlist(lapply( identification_traml_ids, function( traml_id ){
-        #   mods_for_ident_transition <- unique(unlist(lapply(traml_id, getModificationPosition_)))
-        #   if ( any( current_mod_index == mods_for_ident_transition ) ){
-        #     if ( any( (mods_for_ident_transition %in% alternate_mod_index) ) ){
-        #       return( FALSE )
-        #     } else {
-        #       return( TRUE )
-        #     }
-        #   } else {
-        #     return( FALSE )
-        #   } 
-        # } ) )
-        
-        
-        # df_plot %>%
-        #   dplyr::filter( current_mod_transitions ) -> df_plot
-        # tmp_plot <- df_plot
-        
-        # len_unmod <- nchar( unique(df_lib$UNMODIFIED_SEQUENCE) )
-        # uni_mod_list <- getSiteDeterminingIonInformation_( mod, len_unmod )
-        # ion_ordinal_type <- gsub( '*_\\d+\\.\\d+', '', gsub('.*\\d+_\\d[\\+]_*', '', df_plot$Transition))
-        
-        # df_plot %>%
-        #   dplyr::filter( grepl(glob2rx( paste('*', gsub('\\(UniMod:259\\)|\\(UniMod:267\\)|\\(Label.*)','', gsub('UniMod:35', 'Oxidation', gsub('UniMod:4', 'Carbamidomethyl', gsub('UniMod:21','Phospho',mod)))) ,'*',sep='')),
-        #                        gsub('\\(Label:13C\\(6\\)15N\\(4\\)\\)', '', gsub('.*\\{|\\}.*','',df_plot$TRAML_ID))) &
-        #                    ( gsub('[[:digit:]]', '', ion_ordinal_type) =='y' & as.numeric(gsub('[^[:digit:]]', '', ion_ordinal_type)) < as.numeric(uni_mod_list$y[4]) ) |
-        #                    ( gsub('[[:digit:]]', '', ion_ordinal_type) =='b' & as.numeric(gsub('[^[:digit:]]', '', ion_ordinal_type)) < as.numeric(uni_mod_list$b[3]) )
-        #                  ) -> tmp_plot
-        
-        # df_plot %>%
-        #   dplyr::filter( grepl(glob2rx( paste('*', gsub('\\(UniMod:259\\)|\\(UniMod:267\\)|\\(Label.*)','', gsub('UniMod:35', 'Oxidation', gsub('UniMod:4', 'Carbamidomethyl', gsub('UniMod:21','Phospho',mod)))) ,'*',sep='')),
-        #                        gsub('\\(Label:13C\\(6\\)15N\\(4\\)\\)', '', gsub('.*\\{|\\}.*','',df_plot$TRAML_ID))) &
-        #                    ( gsub('[[:digit:]]', '', ion_ordinal_type) =='y' & as.numeric(gsub('[^[:digit:]]', '', ion_ordinal_type)) %in% c(2,3) ) |
-        #                    ( gsub('[[:digit:]]', '', ion_ordinal_type) =='b' & as.numeric(gsub('[^[:digit:]]', '', ion_ordinal_type)) %in% c(8,9) )
-        #   ) -> tmp_plot
         
         
         # Number of Transitions to display
@@ -795,11 +843,28 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         
         if ( dim(tmp_plot)[1] > 0){
           
-          graphic_obj <- graphic_obj + 
-            ggplot2::geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) +
-            guides(col=guide_legend(title="Identifying"))  #+ 
-          # theme(legend.text = element_text(size = 2),
-          #       legend.key.size = unit(0.5, "cm"))
+          if( !is.null(transition_dt) ) {
+            
+            text_info <- sprintf("Transition: %s\nPk_Grp_RT: %s\nPEP: %s\npval: %s\nqval: %s\nscore: %s", 
+                                 tmp_plot$Transition, 
+                                 tmp_plot$RT.Map, 
+                                 checkNumeric(tmp_plot$pep), 
+                                 checkNumeric(tmp_plot$pval), 
+                                 checkNumeric(tmp_plot$qval), 
+                                 checkNumeric(tmp_plot$score) )
+            
+            graphic_obj <- graphic_obj + 
+              ggplot2::geom_line(data=dplyr::select(tmp_plot, c("RT", "Int", "Transition")), aes(RT, Int, col=Transition, text=text_info, group=Transition), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) +
+              guides(col=guide_legend(title="Identifying")) 
+            
+          } else {
+            graphic_obj <- graphic_obj + 
+              ggplot2::geom_line(data= dplyr::filter(df_plot, TRANSITION_ID==206765), aes(RT, Int, col=Transition, text=sprintf("Transition: %s", Transition)), 
+                                 linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) +
+              guides(col=guide_legend(title="Identifying")) 
+          }
+          
+          
         }
       }
       ##### Shared Identifying Transitions

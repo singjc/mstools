@@ -35,6 +35,7 @@
 #' @param use_top_trans_pep A logical value. TRUE will rank the transitions based on the posterior error probabilities.
 #' @param transition_selection_list A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )
 #' @param show_n_transitions A numeric value. Show n number of transitions
+#' @param show_transition_scores A logical value. If set to TRUE, will include TRANSITION PEPs as text tag when using interactive plotly.
 #' @param show_all_pkgrprnk A logical value. Show all feature peak-group ranks. Usually 5. (Default: 5)
 #' @param show_manual_annotation A dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)
 #' @param show_legend A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)
@@ -71,6 +72,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                use_top_trans_pep=F,
                                transition_selection_list=NULL,
                                show_n_transitions=NULL,
+                               show_transition_scores=FALSE,
                                show_all_pkgrprnk=T,
                                show_peak_info_tbl=F,
                                show_manual_annotation=NULL,
@@ -78,20 +80,16 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                ){
   
   # Get XICs for Modified Peptides  ---------------------------------------------------------------
-  # 
-  
-  # verbose <- Verbose(threshold = 0)
-  # cat(verbose, red('bleh'))
   
   if ( F ){
     file_idx <- 1
-    dup_peps <- "SQGGDGYYGR"
+    dup_peps <- "NYVTPVNR"
     pep <- dup_peps
-    uni_mod <- "SQGGDGYY(UniMod:21)GR"
+    uni_mod <- "NY(UniMod:21)VTPVNR"
     Charge_State <- 2
-    sqMass_files <-  "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/sqMass/lgillet_L160915_014-Manchester_dirty_phospho_-_Pool_U7_-_SW.mzML.gz_osw_chrom.sqMass"
+    sqMass_files <-  "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_rt_extraction_window_750_extra_rt_extraction_window_300/sqmass/lgillet_L160915_002-Manchester_dirty_phospho_-_Pool_U1_-_SW.mzML.gz_osw_chrom.sqMass"
     in_lib <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/lib/ConsLib_5600_dpp_UK_peakview_curated_optimized_decoys.pqp"
-    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
+    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_rt_extraction_window_750_extra_rt_extraction_window_300/pyprophet/LDA/merged_runs_group_id_MS1MS2_intergration.osw"
     plotPrecursor=T;
     plotIntersectingDetecting=T;
     plotUniqueDetecting=F;
@@ -115,6 +113,13 @@ XICMasterPlotFcn_ <- function( dup_peps,
     show_legend=T
     uni_isoform_group_list_idx=1
     mod=uni_mod
+    show_transition_scores <- T
+    transition_selection_list <- list( b = c(3:3))
+  }
+  
+  ## Check if logging has been initialized
+  if( MazamaCoreUtils::logger.isInitialized() ){
+    log_setup()
   }
   
   tictoc::tic( paste('XIC plotting for ', length(dup_peps), ' peptides took: ', sep=' '))
@@ -331,6 +336,16 @@ XICMasterPlotFcn_ <- function( dup_peps,
           } else {
             top_trans_mod_list <- NULL
           }
+          
+          #######################################
+          ## Get TRANSITION SCORES INFO TABLE  ##
+          #######################################
+          if ( show_transition_scores ){
+            transition_dt <- getTransitionScores_( oswfile = in_osw, run_name = run_name, precursor_id = "", peptide_id = pep)
+          } else {
+            transition_dt <- NULL
+          }
+          
           cat('   ~ Starting Plotting Action\n', sep='')
           plot_list <- list()
           max_Int <- 0
@@ -355,7 +370,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     smooth_chromatogram=smooth_chromatogram, 
                                     doFacetZoom=F, 
                                     top_trans_mod_list=NULL, 
-                                    show_n_transitions=show_n_transitions )
+                                    show_n_transitions=show_n_transitions,
+                                    transition_dt=transition_dt )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             } else {
@@ -380,7 +396,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     smooth_chromatogram=smooth_chromatogram, 
                                     doFacetZoom=F, 
                                     top_trans_mod_list=NULL, 
-                                    show_n_transitions=show_n_transitions )
+                                    show_n_transitions=show_n_transitions,
+                                    transition_dt=transition_dt )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             }
@@ -398,7 +415,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     smooth_chromatogram=smooth_chromatogram, 
                                     doFacetZoom=F, 
                                     top_trans_mod_list=NULL, 
-                                    show_n_transitions=show_n_transitions )
+                                    show_n_transitions=show_n_transitions,
+                                    transition_dt=transition_dt )
               max_Int <- g$max_Int
               g <- g$graphic_obj
             }
@@ -422,7 +440,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                     show_n_transitions=show_n_transitions, 
                                     plotIdentifying.Unique=plotIdentifying.Unique, 
                                     plotIdentifying.Shared=plotIdentifying.Shared, 
-                                    plotIdentifying.Against=plotIdentifying.Against )
+                                    plotIdentifying.Against=plotIdentifying.Against,
+                                    transition_dt=transition_dt )
               max_Int <- g$max_Int
               g <- g$graphic_obj
               

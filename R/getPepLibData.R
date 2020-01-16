@@ -9,10 +9,11 @@
 
 #' @export
 #' @title Extract data from a PQP library file
-#' @description This function can be used to extract information from the PQP library file
+#' @description This function can be used to extract information from the PQP library file. This can also be used to extract the transition informaiton from and OSW results file.
 #' 
 #' @param libfile A character vector of the absolute path and filename of the library file. (Must be .pqp format)
 #' @param peptide_id A character vector for extraction of a specific peptide. I.e. 'ANSSPTTNIDHLK'
+#' @param mod_peptide_id An array of two string vectors indicating a specific modified peptide sequence with both UniMod annotation and actual modification name to extract information for. I.e. c(ANS(Phos)SNSLK, ANS(UniMod:21)SNSLK) (Default: '')
 #' @return A data.table containing spectral library information
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -21,14 +22,16 @@
 #' @import RSQLite
 #' @import dbplyr
 #' @import dplyr
-getPepLibData_ <- function( libfile, peptide_id = ''){
+getPepLibData_ <- function( libfile, peptide_id = '', mod_peptide_id=c('','') ){
   # Connect to database
   lib_db <- DBI::dbConnect( RSQLite::SQLite(), libfile )
   # Add Query statement to extract a specific peptide
-  if ( peptide_id != '') {
-    peptide_query <- sprintf( "INNER JOIN PEPTIDE ON PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID = PEPTIDE.ID AND PEPTIDE.UNMODIFIED_SEQUENCE=('%s')", peptide_id )
+  if ( peptide_id !='' ){
+    peptide_query = sprintf( "INNER JOIN PEPTIDE ON PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID = PEPTIDE.ID AND PEPTIDE.UNMODIFIED_SEQUENCE=('%s')", peptide_id )	
+  } else if ( mod_peptide_id[1]!='' & mod_peptide_id[2]!='' ){
+    peptide_query = sprintf("INNER JOIN PEPTIDE ON PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID = PEPTIDE.ID AND ( PEPTIDE.MODIFIED_SEQUENCE=('%s') OR PEPTIDE.MODIFIED_SEQUENCE=('%s') )", mod_peptide_id[1], mod_peptide_id[2])
   } else {
-    peptide_query <- 'INNER JOIN PEPTIDE ON PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID = PEPTIDE.ID'
+    peptide_query = 'INNER JOIN PEPTIDE ON PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID = PEPTIDE.ID'
   }
   # Create Query
   lib_query =  sprintf( "
