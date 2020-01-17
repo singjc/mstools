@@ -455,8 +455,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
       }
       )
       
-    }, mc.cores = parallel::detectCores()-3 ) ## mclapply
-
+    }, mc.cores = 1 ) ## mclapply 
+    # TODO: Workaround mc.core = 1 for windows, or remove parallel, might not be necessary here.
     ##*****************************
     ##    Save/Print Plot
     ##*****************************
