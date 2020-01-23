@@ -205,7 +205,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         labs(subtitle = paste('Run: ', run, 
                               ' | Precursor: ', df_lib_filtered$PRECURSOR_ID, 
                               ' | Peptide: ', df_lib_filtered$PEPTIDE_ID, 
-                              ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, sep=''))
+                              ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, 
+                              ' | m/z: ', df_lib_filtered$PRECURSOR_MZ, sep=''))
       return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) 
     }
     ## Filter OSW dataframe for precursor with target charge.
@@ -233,6 +234,21 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_df %>%
         dplyr::filter( peak_group_rank==1 ) -> osw_df_filtered #### No longer filter by peak group
     }
+    
+    ## Check if openswath dataframe is empty after filtering
+    if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe after filtering for peptide and top peak\n' ) ){ 
+      ## If osw_df is empty, return graphic object and max_Int value.
+      graphic_obj <- graphic_obj +
+        ggtitle(  mod ) +
+        labs(subtitle = paste('Run: ', run, 
+                              ' | Precursor: ', df_lib_filtered$PRECURSOR_ID, 
+                              ' | Peptide: ', df_lib_filtered$PEPTIDE_ID, 
+                              ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, 
+                              ' | m/z: ', df_lib_filtered$PRECURSOR_MZ, sep=''))
+      
+      return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) 
+    }
+    
     ## Extract some useful scores
     m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
     prec_pkgrp_pep <- checkNumeric( osw_df_filtered$precursor_pep[[1]] )
