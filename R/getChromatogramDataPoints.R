@@ -152,11 +152,16 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, mzPntrs=NULL ){
     }
     # Read in an mzML chromatogram --------------------------------------------
     MazamaCoreUtils::logger.info('[mstools::getChromatogramDataPoints_] Reading in chromatogram of ', crayon::blue$bold$underline('mzML type.\n', sep=''))
+    if ( is.null(mzPntrs) ){
     MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** mzR: Loading mzML chromatogram into mz_object **")
     # Create an mzR object that stores all header information, and use ProteoWizard api to access data from MzML file
     mz_object <- mzR::openMSfile(filename, backend = "pwiz", verbose = T)
     # Get header information for chromtagograms
     chromHead <- mzR::chromatogramHeader(mz_object)
+    } else {
+      mz_object <- mzPntrs$mz
+      chromHead <- mzPntrs$chromHead
+    }
     MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** mzR: Extracting chromatogram indices **")
     # Extract all the indices of chromatograms that match the transition names of the ones found in the TargetPetides file
     chromatogramIndices <- chromHead$chromatogramIndex[ match(frag_ids[[1]], chromHead$chromatogramId)  ]
