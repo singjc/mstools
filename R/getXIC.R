@@ -17,6 +17,7 @@
 #' @param chromatogram_file A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)
 #' @param chromatogram_data_points_list (Optional) Pass a list containing chromatogram data.
 #' @param in_osw A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?
+#' @param df_osw An optional dataframe containing OpenSwath Results information. (Use this if you have a dataframe cached in memory)
 #' @param annotate_best_pkgrp Annotate the ebst peak group
 #' @param transition_type A vector containing possible choices for dispalying one of the following transition group types. getXIC needs to be called for each option (Options: c('precursor', 'detecting', 'identifying') )
 #' @param unit_mod_list A list of potential modifiable forms. (Default: NULL)
@@ -35,11 +36,12 @@
 #' @param show_n_transitions A numeric value indicating the number of transitions to draw. (Default: NULL, default is 6 transitions)
 #' @param transition_dt A data.table containing TRANSITION_SCORE Information obtained from the OSW file using getTransitionScores_. (Default: NULL)
 #' @param show_legend A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)
+#' @param mzPntrs A list object containing cached mzR objects.
 #' @return A list containing graphic_obj = the graphic handle for the ggplot filled with data and max_Int = the maximun intensity 
 #'
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @importFrom ggplot2 ggplot geom_line geom_vline geom_rect aes guides guide_legend ggtitle labs theme element_text scale_alpha_identity scale_fill_manual 
+#' @importFrom ggplot2 ggplot geom_line geom_vline geom_rect aes guides guide_legend ggtitle labs theme element_text scale_alpha_identity scale_fill_manual theme_bw
 #' @importFrom gridExtra ttheme_default tableGrob arrangeGrob 
 #' @importFrom ggpubr as_ggplot 
 #' @importFrom data.table set
@@ -56,6 +58,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     chromatogram_data_points_list=NULL,
                     Isoform_Target_Charge, 
                     in_osw=NULL, 
+                    df_osw=NULL,
                     annotate_best_pkgrp=TRUE,
                     transition_type=c('detecting'), 
                     uni_mod_list=NULL, 
@@ -73,10 +76,11 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     plotIdentifying.Against=NULL,
                     show_n_transitions=NULL,
                     transition_dt=NULL,
-                    show_legend=T
+                    show_legend=T, 
+                    mzPntrs=NULL
 ){
   
-
+  
   
   ## Check if logging has been initialized
   if( MazamaCoreUtils::logger.isInitialized() ){
@@ -159,7 +163,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   ##    Extract OpenSwath Information from .osw
   ##******************************************************************
   
-  if ( !is.null( in_osw ) ){
+  if ( !is.null( in_osw ) | !is.null(df_osw) ){
     MazamaCoreUtils::logger.info(  '--> Extracting OpenSwathResults Info...\n')
     ## Filter library dataframe for matching evaluated modification sequence, precursor charge and for detecting transitions. 
     df_lib %>%
@@ -180,14 +184,18 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       dplyr::select( PRECURSOR_ID ) %>%
       unique() %>% as.matrix() %>% as.numeric() -> target_charge_precursor
     ## @TODO: Need to make this more robust for later
-    if( mod==mod_form_rename ){
-      osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
-      # # Original OSW Peptide Names 
-      # osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
-      # # Keep only Rows that correspond to the correct Assay
-      # osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName )
+    if ( is.null(df_osw) ){
+      if( mod==mod_form_rename ){
+        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+        # # Original OSW Peptide Names 
+        # osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
+        # # Keep only Rows that correspond to the correct Assay
+        # osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName )
+      } else {
+        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+      }
     } else {
-      osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+      osw_df <- df_osw
     }
     ## Check if openswath dataframe is empty
     if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe\n' ) ){ 
@@ -197,7 +205,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         labs(subtitle = paste('Run: ', run, 
                               ' | Precursor: ', df_lib_filtered$PRECURSOR_ID, 
                               ' | Peptide: ', df_lib_filtered$PEPTIDE_ID, 
-                              ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, sep=''))
+                              ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, 
+                              ' | m/z: ', df_lib_filtered$PRECURSOR_MZ, sep=''))
       return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) 
     }
     ## Filter OSW dataframe for precursor with target charge.
@@ -225,6 +234,21 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_df %>%
         dplyr::filter( peak_group_rank==1 ) -> osw_df_filtered #### No longer filter by peak group
     }
+    
+    ## Check if openswath dataframe is empty after filtering
+    if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe after filtering for peptide and top peak\n' ) ){ 
+      ## If osw_df is empty, return graphic object and max_Int value.
+      graphic_obj <- graphic_obj +
+        ggtitle(  mod ) +
+        labs(subtitle = paste('Run: ', run, 
+                              ' | Precursor: ', df_lib_filtered$PRECURSOR_ID, 
+                              ' | Peptide: ', df_lib_filtered$PEPTIDE_ID, 
+                              ' | Charge: ', df_lib_filtered$PRECURSOR_CHARGE, 
+                              ' | m/z: ', df_lib_filtered$PRECURSOR_MZ, sep=''))
+      
+      return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) 
+    }
+    
     ## Extract some useful scores
     m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
     prec_pkgrp_pep <- checkNumeric( osw_df_filtered$precursor_pep[[1]] )
@@ -235,6 +259,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Append OSW information to Chromatogram ggplot.
     ##****************************************************
     if ( annotate_best_pkgrp ) {
+      MazamaCoreUtils::logger.info(  '---> Adding Best Peak Annotation...\n')
       graphic_obj <- graphic_obj +
         # geom_vline(xintercept = osw_df_filtered$RT, color='red', size = 1.3, alpha = 0.65 ) +
         geom_vline(data = osw_df_filtered, aes(xintercept = osw_df_filtered$RT, text = sprintf("Peak RT: %s\nLeft Width: %s\nRight Width: %s\nPeak Rank: %s\nms2_m-score: %s\nprec-pkgrp pep: %s\nipf pep: %s\nipf_m-score: %s",
@@ -263,8 +288,13 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Plot Other peak rank groups
     ##*************************************
     if( !is.null(RT_pkgrps) ){
-      ## Get OSW data for other potential peaks/features
-      osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+      MazamaCoreUtils::logger.info(  '---> Adding Other Peak Group Annotations...\n')
+      if ( is.null(df_osw) ){
+        ## Get OSW data for other potential peaks/features
+        osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+      } else {
+        osw_RT_pkgrps <- df_osw
+      }
       ## Filter out the top best feature  
       osw_RT_pkgrps %>%
         dplyr::filter( RT %in% RT_pkgrps ) %>%
@@ -284,6 +314,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           geom_vline(data = osw_RT_pkgrps_filtered, aes(xintercept = rightWidth), color=osw_RT_pkgrps_filtered$Color, linetype='dotted', alpha=0.85, size=1 ) 
         
         if ( show_peak_info_tbl ){
+          MazamaCoreUtils::logger.info(  '---> Adding Peak Information Table...\n')
           for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
             ## get scores and format them                                                                                                             
             rank <- osw_RT_pkgrps_filtered$peak_group_rank[RT_idx]                                                                      
@@ -335,6 +366,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     # Plot Mannual Annotation Coordinates
     #***************************************
     if ( !is.null(show_manual_annotation) ){
+      MazamaCoreUtils::logger.info(  '---> Adding Manual Peak Annotation...\n')
       graphic_obj <- graphic_obj + 
         geom_rect(data = data.frame(xmin = show_manual_annotation[1],
                                     xmax = show_manual_annotation[2],
@@ -415,7 +447,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ##***************************************
     ##    Extract Chromatogram Data    
     ##***************************************
-    chrom <- getChromatogramDataPoints_( chromatogram_file, frag_ids  )
+    chrom <- getChromatogramDataPoints_( chromatogram_file, frag_ids, mzPntrs=mzPntrs  )
     
     ##***************************************
     ##    Smooth Chromatogram
@@ -445,7 +477,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         }
       }
     }
-    
+    MazamaCoreUtils::logger.info(  'Chromatogram Data Points were supplied..\n') 
     ## Combine list of Intensity dataframs and Retention Time dataframes into one Dataframe mapping by Transition ID 
     df_plot <- dplyr::bind_rows(parallel::mclapply(chromatogram_data_points_list, data.frame), .id='Transition')
     

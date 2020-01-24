@@ -12,6 +12,7 @@ getXIC(
   chromatogram_data_points_list = NULL,
   Isoform_Target_Charge,
   in_osw = NULL,
+  df_osw = NULL,
   annotate_best_pkgrp = TRUE,
   transition_type = c("detecting"),
   uni_mod_list = NULL,
@@ -29,7 +30,8 @@ getXIC(
   plotIdentifying.Against = NULL,
   show_n_transitions = NULL,
   transition_dt = NULL,
-  show_legend = T
+  show_legend = T,
+  mzPntrs = NULL
 )
 }
 \arguments{
@@ -44,6 +46,8 @@ getXIC(
 \item{chromatogram_data_points_list}{(Optional) Pass a list containing chromatogram data.}
 
 \item{in_osw}{A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?}
+
+\item{df_osw}{An optional dataframe containing OpenSwath Results information. (Use this if you have a dataframe cached in memory)}
 
 \item{annotate_best_pkgrp}{Annotate the ebst peak group}
 
@@ -78,6 +82,8 @@ getXIC(
 \item{transition_dt}{A data.table containing TRANSITION_SCORE Information obtained from the OSW file using getTransitionScores_. (Default: NULL)}
 
 \item{show_legend}{A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)}
+
+\item{mzPntrs}{A list object containing cached mzR objects.}
 
 \item{unit_mod_list}{A list of potential modifiable forms. (Default: NULL)}
 

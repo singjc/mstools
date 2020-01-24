@@ -30,10 +30,12 @@ XICMasterPlotFcn_(
   transition_selection_list = NULL,
   show_n_transitions = NULL,
   show_transition_scores = FALSE,
+  annotate_best_pkgrp = TRUE,
   show_all_pkgrprnk = T,
   show_peak_info_tbl = F,
   show_manual_annotation = NULL,
-  show_legend = T
+  show_legend = T,
+  mzPntrs = NULL
 )
 }
 \arguments{
@@ -87,11 +89,15 @@ XICMasterPlotFcn_(
 
 \item{show_transition_scores}{A logical value. If set to TRUE, will include TRANSITION PEPs as text tag when using interactive plotly.}
 
+\item{annotate_best_pkgrp}{A logical value. Annotate Top Peak Group}
+
 \item{show_all_pkgrprnk}{A logical value. Show all feature peak-group ranks. Usually 5. (Default: 5)}
 
 \item{show_manual_annotation}{A dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)}
 
 \item{show_legend}{A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)}
+
+\item{mzPntrs}{A list object containing cached mzR objects.}
 }
 \value{
 A ggplot-grobs table of a XIC

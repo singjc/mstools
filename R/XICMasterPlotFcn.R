@@ -36,9 +36,11 @@
 #' @param transition_selection_list A list containing transitions to display for unique identifying. i.e. transition_selection_list <- list( y = c(3), b = c(8:10) )
 #' @param show_n_transitions A numeric value. Show n number of transitions
 #' @param show_transition_scores A logical value. If set to TRUE, will include TRANSITION PEPs as text tag when using interactive plotly.
+#' @param annotate_best_pkgrp A logical value. Annotate Top Peak Group
 #' @param show_all_pkgrprnk A logical value. Show all feature peak-group ranks. Usually 5. (Default: 5)
 #' @param show_manual_annotation A dataframe with leftWidth and rightWidth retention time boundary values of a manually annotated peak. Will draw a transparent blue shaded rectangle indicating manual annotation. I.e data.frame(leftWidth=300, rightWidth=330)
 #' @param show_legend A logical value. Display legend information for transition id, m/z and charge. (Default: TRUE)
+#' @param mzPntrs A list object containing cached mzR objects.
 #' 
 #' @return A ggplot-grobs table of a XIC
 #' 
@@ -73,10 +75,12 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                transition_selection_list=NULL,
                                show_n_transitions=NULL,
                                show_transition_scores=FALSE,
+                               annotate_best_pkgrp=TRUE,
                                show_all_pkgrprnk=T,
                                show_peak_info_tbl=F,
                                show_manual_annotation=NULL,
-                               show_legend=T
+                               show_legend=T,
+                               mzPntrs=NULL
                                ){
   
   # Get XICs for Modified Peptides  ---------------------------------------------------------------
@@ -420,6 +424,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                   uni_mod_list = uni_mod_list, 
                                   max_Int = max_Int, 
                                   in_osw = in_osw, 
+                                  annotate_best_pkgrp=annotate_best_pkgrp,
                                   doFacetZoom=doFacetZoom, 
                                   top_trans_mod_list=NULL, 
                                   RT_pkgrps=RT_pkgrps, 
@@ -455,8 +460,8 @@ XICMasterPlotFcn_ <- function( dup_peps,
       }
       )
       
-    }, mc.cores = parallel::detectCores()-3 ) ## mclapply
-
+    }, mc.cores = 1 ) ## mclapply 
+    # TODO: Workaround mc.core = 1 for windows, or remove parallel, might not be necessary here.
     ##*****************************
     ##    Save/Print Plot
     ##*****************************
