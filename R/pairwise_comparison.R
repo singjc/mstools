@@ -23,7 +23,7 @@
 pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
   
   ## Check if logging has been initialized
-  if( MazamaCoreUtils::logger.isInitialized() ){
+  if( !MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
   }
   
@@ -41,11 +41,12 @@ pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
     
     # Decaprecated
     # ifelse(x$rightWidth[1] >= x$leftWidth[2] & x$rightWidth[2] >= x$leftWidth[1], 'same', 'diff')
-    
+    # print(x)
     ## Check if any of the entries are NA, if so return single
     if ( any(is.na(x$rightWidth)) | any(is.na(x$leftWidth)) | length(x$leftWidth)==1 | length(x$rightWidth)==1  ){
-      return('N/A')
-    }
+      # cat("Returning NA\n")
+      return(NA)
+      }
      
     ## Check for cases where either boundary is completely withing the other boundary
     if ( x$leftWidth[1]  > x$leftWidth[2] & x$rightWidth[1]  < x$rightWidth[2] | x$leftWidth[1]  < x$leftWidth[2] & x$rightWidth[1]  > x$rightWidth[2] ){
@@ -69,7 +70,7 @@ pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
       
     }
     
-    return( ifelse(P_overlap > P_overlap_threshold, 'same', 'diff') )
+    return( ifelse(P_overlap > P_overlap_threshold, 1, 0) )
     
   } else if (out=='percentOverlap'){
     if ( DEBUG ){

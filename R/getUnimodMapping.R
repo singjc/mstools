@@ -67,6 +67,7 @@ unimodTocodename <- function( mod_seq, out='sequence'){
     mod_seq <- "EGHAQNPMEPSVPQLSLMDVK"
     mod_seq <- "EGHAQNPMEPSVPQLS(UniMod:21)LMDVK"
     mod_seq <- "EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
+    mod_seq <- "ADEIC(UniMod:4)IAGS(UniMod:21)PLTPR"
   }
   ## Get Modifications
   modification_labels <- base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]

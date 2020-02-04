@@ -9,15 +9,18 @@ getOSWData_(
   run_name = "",
   precursor_id = "",
   peptide_id = "",
+  peptide_unmodified = "",
+  peptide_modified = "",
   mod_peptide_id = c("", ""),
   mod_residue_position = "",
   peak_group_rank_filter = FALSE,
   pep_list = "",
-  mscore_filter = "",
+  mscore_filter = c(SCORE_ = 1),
   ipf_filter = "",
   ipf_score = FALSE,
   ms2_score = TRUE,
-  decoy_filter = TRUE
+  decoy_filter = TRUE,
+  inference_level = "peptide_query"
 )
 }
 \arguments{
@@ -27,7 +30,11 @@ getOSWData_(
 
 \item{precursor_id}{A numeric value for a specific precursor id to extract information for. (Default: '')}
 
-\item{peptide_id}{A string vector indicating a specific peptide to extract information for. (Default: '')}
+\item{peptide_id}{A numeric value for a specific peptide id to extract information for. (Default: '')}
+
+\item{peptide_unmodified}{A string vector indicating a specific unmodified peptide sequence to extract information for. (Default: '')}
+
+\item{peptide_modified}{A string vector indicating a specific modified peptide sequence to extract information for. (Default: '')}
 
 \item{mod_peptide_id}{An array of two string vectors indicating a specific modified peptide sequence with both UniMod annotation and actual modification name to extract information for. I.e. c(ANS(Phos)SNSLK, ANS(UniMod:21)SNSLK) (Default: '')}
 
@@ -37,7 +44,7 @@ getOSWData_(
 
 \item{pep_list}{An arrary of string modified peptide sequences to extract information for. (Default: '')}
 
-\item{mscore_filter}{A numeric value to filter results by MS2 q-value. (Default: '')}
+\item{mscore_filter}{A named numeric value to filter results by named q-value. (Default: '') Options: SCORE_MS2, SCORE_IPF, SCORE_PEPTIDE. Example: c(SCORE_MS2=0.01)}
 
 \item{ipf_filter}{A numeric value to filter results by IPF PEP. (Default: '')}
 

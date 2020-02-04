@@ -16,6 +16,8 @@
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
 #' @importFrom MazamaCoreUtils logger.setup logger.setLevel
+#' 
+#' @export
 log_setup <- function(){
 # Setup Logging System
 tmpDir <- getwd()

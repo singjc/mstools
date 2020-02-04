@@ -25,7 +25,7 @@
 getRunID_ <- function( oswfile, run_name ){
   
   ## Check if logging has been initialized
-  if( MazamaCoreUtils::logger.isInitialized() ){
+  if( !MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
   }
   
@@ -36,7 +36,7 @@ getRunID_ <- function( oswfile, run_name ){
     run_name <- "lgillet_L160918_002-Manchester_dirty_phospho_-_Pool_M1_-_SW.mzML.gz"
   }
   
-  MazamaCoreUtils::logger.info( "** Getting Run  ID Information for: ", run_name, " **\n" )
+  MazamaCoreUtils::logger.info( paste("** Getting Run  ID Information for: ", run_name, " **\n" ))
   
   # Connect to database
   MazamaCoreUtils::logger.trace(sprintf("[mstools::getRunID_] Connecting To Database: %s\n", oswfile))
@@ -54,7 +54,7 @@ getRunID_ <- function( oswfile, run_name ){
   DBI::dbDisconnect(osw_db)
   
   if (dim(df)[1]==0){
-    MazamaCoreUtils::logger.error( (run_name), (' was not found in database!\n'), sep='' )
+    MazamaCoreUtils::logger.error( paste((run_name), (' was not found in database!\n'), sep='' ))
   }
   return(df)
 }
