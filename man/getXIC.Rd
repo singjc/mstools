@@ -13,6 +13,7 @@ getXIC(
   Isoform_Target_Charge,
   in_osw = NULL,
   df_osw = NULL,
+  SCORE_IPF = FALSE,
   annotate_best_pkgrp = TRUE,
   transition_type = c("detecting"),
   uni_mod_list = NULL,
@@ -48,6 +49,8 @@ getXIC(
 \item{in_osw}{A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?}
 
 \item{df_osw}{An optional dataframe containing OpenSwath Results information. (Use this if you have a dataframe cached in memory)}
+
+\item{SCORE_IPF}{Do you want to extract IPF Score if present? (Default: FALSE. will use MS2 m-scores)}
 
 \item{annotate_best_pkgrp}{Annotate the ebst peak group}
 

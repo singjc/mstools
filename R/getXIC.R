@@ -18,6 +18,7 @@
 #' @param chromatogram_data_points_list (Optional) Pass a list containing chromatogram data.
 #' @param in_osw A character vector of the absolute path and filename of the OpenSwath Output file. (Must be .osw) @TODO maybe make this more robust for tsv files as well?
 #' @param df_osw An optional dataframe containing OpenSwath Results information. (Use this if you have a dataframe cached in memory)
+#' @param SCORE_IPF Do you want to extract IPF Score if present? (Default: FALSE. will use MS2 m-scores)
 #' @param annotate_best_pkgrp Annotate the ebst peak group
 #' @param transition_type A vector containing possible choices for dispalying one of the following transition group types. getXIC needs to be called for each option (Options: c('precursor', 'detecting', 'identifying') )
 #' @param unit_mod_list A list of potential modifiable forms. (Default: NULL)
@@ -59,6 +60,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     Isoform_Target_Charge, 
                     in_osw=NULL, 
                     df_osw=NULL,
+                    SCORE_IPF=FALSE,
                     annotate_best_pkgrp=TRUE,
                     transition_type=c('detecting'), 
                     uni_mod_list=NULL, 
@@ -83,7 +85,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   
   
   ## Check if logging has been initialized
-  if( MazamaCoreUtils::logger.isInitialized() ){
+  if( !MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
   }
   
@@ -186,13 +188,13 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## @TODO: Need to make this more robust for later
     if ( is.null(df_osw) ){
       if( mod==mod_form_rename ){
-        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', ipf_filter='', ms2_score=T, ipf_score=SCORE_IPF )
         # # Original OSW Peptide Names 
         # osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
         # # Keep only Rows that correspond to the correct Assay
         # osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName )
       } else {
-        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+        osw_df <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id="", mod_residue_position='', peak_group_rank_filter=F, pep_list='', ipf_filter='', ms2_score=T, ipf_score=SCORE_IPF )
       }
     } else {
       osw_df <- df_osw
@@ -251,9 +253,21 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     
     ## Extract some useful scores
     m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
+    if ( "precursor_pep" %in% colnames(osw_df_filtered) ){
     prec_pkgrp_pep <- checkNumeric( osw_df_filtered$precursor_pep[[1]] )
-    ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
-    ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
+    } else {
+      prec_pkgrp_pep <- NULL
+    }
+    if ( "ipf_pep" %in% osw_df_filtered$ipf_pep ) {
+      ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
+    } else {
+      ipf_pep <- NULL
+    }
+    if ( "m_score" %in% osw_df_filtered$m_score ) {
+      ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
+    } else {
+      ipf_m_score <- NULL
+    }
     ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]], signif.not=F )
     ##****************************************************
     ## Append OSW information to Chromatogram ggplot.
@@ -291,7 +305,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       MazamaCoreUtils::logger.info(  '---> Adding Other Peak Group Annotations...\n')
       if ( is.null(df_osw) ){
         ## Get OSW data for other potential peaks/features
-        osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id=c(mod,mod_form_rename), mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=T )
+        osw_RT_pkgrps <- getOSWData_( in_osw, run_name, precursor_id=target_charge_precursor, peptide_id='', mod_peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', ipf_filter='', ms2_score=T, ipf_score=SCORE_IPF )
       } else {
         osw_RT_pkgrps <- df_osw
       }
@@ -299,8 +313,16 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_RT_pkgrps %>%
         dplyr::filter( RT %in% RT_pkgrps ) %>%
         dplyr::filter( RT != osw_df_filtered$RT ) %>%
-        dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, ipf_pep, m_score, precursor_pep ) -> osw_RT_pkgrps_filtered
+        dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, contains("ipf_pep"), contains("m_score"), contains("precursor_pep") ) -> osw_RT_pkgrps_filtered
       if ( dim(osw_RT_pkgrps_filtered)[1]!=0 ){
+        
+        # TODO: Change this to be more robust
+        ## Make dumy columns for precursor_pep, ipf_pep etc.
+        if ( !SCORE_IPF ){
+          osw_RT_pkgrps_filtered$precursor_pep <- NaN
+          osw_RT_pkgrps_filtered$ipf_pep <- NaN
+          osw_RT_pkgrps_filtered$m_score <- NaN
+        }
         # Define unique set of colors to annotate different peak rank groups
         jBrewColors <- RColorBrewer::brewer.pal(n = dim(osw_RT_pkgrps_filtered)[1], name = "Dark2")
         

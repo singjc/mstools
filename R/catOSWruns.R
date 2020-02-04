@@ -38,11 +38,15 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     ## Christian sgolay 24
     in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
     in_sqMass <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/sqMass/lgillet_L160915_002-Manchester_dirty_phospho_-_Pool_U1_-_SW.mzML.gz_osw_chrom.sqMass"
-    
+    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_rt_extraction_window_750_extra_rt_extraction_window_300/pyprophet/LDA/merged_runs_group_id_MS1MS2_intergration_contexts_experiment_wide.osw"
+    which_m_score="m_score"
+    m_score_filter=0.01
+    report_top_single_result=T
+    decoy_filter = T; ipf_score=T
   }
   
   ## Check if logging has been initialized
-  if( MazamaCoreUtils::logger.isInitialized() ){
+  if( !MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
   }
   
@@ -50,31 +54,31 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     
     run_name <- gsub('_osw_chrom[.]sqMass', '', basename(in_sqMass))
     
-    MazamaCoreUtils::logger.info( 'Reading in results for: ', crayon::blue$bold$underline(run_name), '\n', sep='' )
+    MazamaCoreUtils::logger.info( paste('Reading in results for: ', crayon::blue$bold$underline(run_name), '\n', sep='' ))
     # Extract OpenSwath REsults for Specfific run
     osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', ... )
     
-    # osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', decoy_filter = T, ipf_score = T )
+    # osw_df <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', decoy_filter = decoy_filter, ipf_score = ipf_score )
     
-    # Original OSW Peptide Names
-    osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
-    
-    #********************#
-    #***     DEBUG    ***#
-    #********************#
-    if ( DEBUG ){
-      dim( osw_df )
-      
-      osw_df %>%
-        dplyr::select( id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, ipf_FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
-        dplyr::filter( Sequence=="ADEICIAGSPLTPR")
-      
-    }
-    
-    if ( which_m_score=='m_score' ){
-      # Keep only Rows that correspond to the correct Assay
-      osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName ) -> osw_df
-    }
+    # # Original OSW Peptide Names
+    # osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
+    # 
+    # #********************#
+    # #***     DEBUG    ***#
+    # #********************#
+    # if ( DEBUG ){
+    #   dim( osw_df )
+    #   
+    #   osw_df %>%
+    #     dplyr::select( id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, ipf_FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
+    #     dplyr::filter( Sequence=="ADEICIAGSPLTPR")
+    #   
+    # }
+    # 
+    # if ( which_m_score=='m_score' ){
+    #   # Keep only Rows that correspond to the correct Assay
+    #   osw_df %>% dplyr::filter( osw_pep_names == osw_df$ipf_FullPeptideName ) -> osw_df
+    # }
     
     #********************#
     #***     DEBUG    ***#
@@ -91,7 +95,7 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     osw_df %>%
       dplyr::filter( !!as.name(which_m_score) < m_score_filter ) -> osw_df_fil2
     
-    osw_df_fil2$Sequence_Group_id <- paste( osw_df_fil2$ipf_FullPeptideName, osw_df_fil2$Charge, osw_df_fil2$mz, sep='_')
+    osw_df_fil2$Sequence_Group_id <- paste( osw_df_fil2$FullPeptideName, osw_df_fil2$Charge, osw_df_fil2$mz, sep='_')
     
     #********************#
     #***     DEBUG    ***#
@@ -123,7 +127,7 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
         dim( osw_df_fil2 )
         
         osw_df_fil2 %>%
-          dplyr::select( id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, ipf_FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
+          dplyr::select( id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
           dplyr::filter( Sequence=="EDTEEISCR")
         
       }

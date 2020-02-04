@@ -16,6 +16,7 @@
 #' @param sqMass_files A list of character vectors. Full paths to chromatogram file(s).
 #' @param in_lib A character vector. Full path to a pqp assay library.
 #' @param in_osw A character vector. Full path to an osw results file.
+#' @param SCORE_IPF Do you want to extract IPF Score if present? (Default: FALSE. will use MS2 m-scores)
 #' @param plotPrecursor A logical value. True will plot precursor chromatogram
 #' @param plotIntersectingDetecting A logcail value. True will plot intersecting detecting transitions if comparing two peptidoforms.
 #' @param plotUniqueDetecting A logical value. True will plot unique detecting transitions if comparing two peptidoforms.
@@ -55,6 +56,7 @@
 XICMasterPlotFcn_ <- function( dup_peps, 
                                uni_mod=NULL, 
                                sqMass_files,  in_lib, in_osw, 
+                               SCORE_IPF=FALSE,
                                plotPrecursor=T,
                                plotIntersectingDetecting=T,
                                plotUniqueDetecting=F,
@@ -86,7 +88,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
   # Get XICs for Modified Peptides  ---------------------------------------------------------------
   
   ## Check if logging has been initialized
-  if( MazamaCoreUtils::logger.isInitialized() ){
+  if( !MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
   }
   
@@ -117,14 +119,19 @@ XICMasterPlotFcn_ <- function( dup_peps,
         })
         
         
-        MazamaCoreUtils::logger.info('   ~ Getting peptide library data.. for ', pep, '\n', sep='')
+        MazamaCoreUtils::logger.info(paste('   ~ Getting peptide library data.. for ', pep, '\n', sep=''))
         # Retrieve library data for specific peptide
         df_lib <- getPepLibData_( in_lib, peptide_id=pep )
         
-        MazamaCoreUtils::logger.info('   ~ Getting OpenSwath data.. for ', pep, '\n', sep='')
-        # Load OSW Merged df
-        osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
-        if ( dim(osw_df)[1]==0 ){ MazamaCoreUtils::logger.error(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep=''); return(list()) }
+        MazamaCoreUtils::logger.info(paste('   ~ Getting OpenSwath data.. for ', pep, '\n', sep=''))
+        tryCatch( expr = {
+          # Load OSW Merged df
+          osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_unmodified = pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', ipf_filter='', ms2_score=T, ipf_score=F )
+          if ( dim(osw_df)[1]==0 ){ MazamaCoreUtils::logger.error(paste(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep='')); return(list()) }
+        }, error = function(e){
+          MazamaCoreUtils::logger.error(sprintf("[mstools::XICMasterPlotFcn_] There was the following error that occured during (R#127): %s", e$message))
+        })
+        
         
         # Get unique number of modifications
         uni_mod_precursor_id <- unique(paste( df_lib$MODIFIED_SEQUENCE, df_lib$PRECURSOR_ID, df_lib$PRECURSOR_CHARGE, sep='_'))
@@ -142,9 +149,9 @@ XICMasterPlotFcn_ <- function( dup_peps,
           uni_mod <- sort(uni_mod)
           # uni_mod <- uni_mod[1:2]
           if(length(uni_mod)>2 | N_sample==1){
-            MazamaCoreUtils::logger.info(crayon::red('There are more than 2 Modification forms for', crayon::underline(pep),'\n Currently cannot handle more than 2 peptidoforms...\nPetidoforms:\n', paste(uni_mod,collapse='\n'),'\n\n', sep=''))
+            MazamaCoreUtils::logger.info(paste(crayon::red('There are more than 2 Modification forms for', crayon::underline(pep),'\n Currently cannot handle more than 2 peptidoforms...\nPetidoforms:\n', paste(uni_mod,collapse='\n'),'\n\n', sep='')))
             
-            MazamaCoreUtils::logger.info('Will randomly sample 2 of the ', length(uni_mod), ' peptidoforms to process...\n')
+            MazamaCoreUtils::logger.info(paste('Will randomly sample 2 of the ', length(uni_mod), ' peptidoforms to process...\n'))
             n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
             n_mod_sites_common <- mstools::Mode(n_mod_sites)
             MazamaCoreUtils::logger.info( crayon::magenta$underline('There is(are) ', crayon::bold(length(n_mod_sites_common)), ' group(s) of isoforms...\n'))
@@ -186,25 +193,25 @@ XICMasterPlotFcn_ <- function( dup_peps,
           if ( length(Isoform_Target_Charge)>1 ){
             
             if ( is.null(Charge_State) ){
-              MazamaCoreUtils::logger.info('* There are ', length(Isoform_Target_Charge), ' charge states.. Will Randomly sample one of the charge states...\n', sep='')
+              MazamaCoreUtils::logger.info(paste('* There are ', length(Isoform_Target_Charge), ' charge states.. Will Randomly sample one of the charge states...\n', sep=''))
               Isoform_Target_Charge <- sample(Isoform_Target_Charge,1) # @ CHANGEEE
             } else {
               Isoform_Target_Charge <- Charge_State
             }
-            MazamaCoreUtils::logger.info('* Will analyze peptidoform with charge state: ', (Isoform_Target_Charge), '\n', sep='')
+            MazamaCoreUtils::logger.info(paste('* Will analyze peptidoform with charge state: ', (Isoform_Target_Charge), '\n', sep=''))
           }
           
           # Filter df_lib based on only the uni modifications with specified charge state found in OSW results
           df_lib %>%
             dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) -> df_lib
           
-          MazamaCoreUtils::logger.info('Peptidoforms of Charge State ', Isoform_Target_Charge, ' to Analyze..\n', paste(uni_mod, collapse = '\n'), '\n', sep='')
+          MazamaCoreUtils::logger.info(paste('Peptidoforms of Charge State ', Isoform_Target_Charge, ' to Analyze..\n', paste(uni_mod, collapse = '\n'), '\n', sep=''))
           if ( length(uni_mod)==1 & N_sample!=1 ){ MazamaCoreUtils::logger.error(crayon::red('There is only 1 form... Skipping...\n')); skipped_bool=TRUE; next }
           
           
           # Display other peak group rank features
           if ( show_all_pkgrprnk==T ){
-            osw_df_all <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id=pep, mod_residue_position='', peak_group_rank_filter=F, pep_list='', mscore_filter='', ipf_filter='', ms2_score=T, ipf_score=F )
+            osw_df_all <- getOSWData_( in_osw, run_name, precursor_id='', peptide_unmodified = pep, mod_residue_position='', peak_group_rank_filter=F, pep_list='', ipf_filter='', ms2_score=T, ipf_score=F )
             
             osw_df_all %>%
               dplyr::filter( FullPeptideName %in% uni_mod) %>%
@@ -424,6 +431,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
                                   uni_mod_list = uni_mod_list, 
                                   max_Int = max_Int, 
                                   in_osw = in_osw, 
+                                  SCORE_IPF=FALSE,
                                   annotate_best_pkgrp=annotate_best_pkgrp,
                                   doFacetZoom=doFacetZoom, 
                                   top_trans_mod_list=NULL, 

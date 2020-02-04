@@ -10,6 +10,7 @@ XICMasterPlotFcn_(
   sqMass_files,
   in_lib,
   in_osw,
+  SCORE_IPF = FALSE,
   plotPrecursor = T,
   plotIntersectingDetecting = T,
   plotUniqueDetecting = F,
@@ -48,6 +49,8 @@ XICMasterPlotFcn_(
 \item{in_lib}{A character vector. Full path to a pqp assay library.}
 
 \item{in_osw}{A character vector. Full path to an osw results file.}
+
+\item{SCORE_IPF}{Do you want to extract IPF Score if present? (Default: FALSE. will use MS2 m-scores)}
 
 \item{plotPrecursor}{A logical value. True will plot precursor chromatogram}
 

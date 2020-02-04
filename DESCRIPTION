@@ -5,38 +5,24 @@ Version: 1.0
 Date: 2020-01-16
 Author: Justin Sing
 Maintainer: Justin Sing <justincsing@gmail.com>
-Description: More about what it does (maybe more than one line)
+Description: Tools to explore OpenSWATH results. This package contains tools for filtering .osw, .pqp and .sqMass database files. This can be useful for creating small sample test datasets. There are also various tools that can be used for visualizing extracted ion chromatographic data, and converting between unimod accession names to their corresponding post-tranlational modified names.
 License: GPL (>= 2)
 RoxygenNote: 7.0.2
 LinkingTo: 
-    Rcpp,
-     RcppArmadillo 
+    Rcpp
 Imports: 
     Rcpp,
-    RcppArmadillo,
-    MazamaCoreUtils,
-    dplyr,
-    crayon,
-    DBI,
-    dbplyr,
-    RSQLite,
-    tools,
-    base,
-    mzR,
     reticulate,
-    ggplot2,
-    ggpubr,
-    gridExtra,
-    rlang,
+    crayon, MazamaCoreUtils, tictoc,
+    plyr, dplyr, purrr,
+    DBI, dbplyr, RSQLite, xml2,
+    data.table, tibble,
+    ggplot2, ggpubr, gridExtra,
+    mzR,
     signal,
-    tibble,
-    plyr,
-    purrr,
+    rlang,
     stringr,
-    xml2,
-    data.table,
-    parallel,
-    tictoc
+    parallel
 Encoding: UTF-8
 LazyData: true
 Suggests: 
