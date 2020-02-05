@@ -217,15 +217,27 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_df %>%
         dplyr::filter( Charge==Isoform_Target_Charge ) -> osw_df
     }
-    ## Filter OSW dataframe for Best Peak Feature.
+    if ( "ipf_pep" %in% osw_df_filtered$ipf_pep ) {
+    
+      ## TODO: Could remove this potentially, since the updated getOSWData function should correct for the other NA options
     if ( !is.null( unlist(osw_df$ipf_pep) ) ){
       ## Remove rows with NULL value in ipf_pep
       osw_df %>%
         dplyr::filter( !is.null(ipf_pep) ) %>%
         dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
-      ## Get data for the best peak as defined by the feature with the lowest IPF posterior error probability 
+    }
+    }
+    if ( "m_score" %in% osw_df_filtered$m_score ) {
+      ## Filter OSW dataframe for Best Peak Feature.
+      ## Get data for the best peak as defined by the feature with the lowest m_score 
       osw_df %>%
         dplyr::filter( m_score==min(m_score) ) -> osw_df_filtered #### No longer filter by peak group
+    } else {
+      ## Filter OSW dataframe for Best Peak Feature.
+      ## Get data for the best peak as defined by the feature with the lowest m_score 
+      osw_df %>%
+        dplyr::filter( m_score==min(ms2_m_score) ) -> osw_df_filtered #### No longer filter by peak group
+    }
       
       if ( dim(osw_df_filtered)[1] > 1 ){
         osw_df_filtered %>%
@@ -254,7 +266,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     ## Extract some useful scores
     m_score <- checkNumeric( osw_df_filtered$ms2_m_score[[1]] )
     if ( "precursor_pep" %in% colnames(osw_df_filtered) ){
-    prec_pkgrp_pep <- checkNumeric( osw_df_filtered$precursor_pep[[1]] )
+      prec_pkgrp_pep <- checkNumeric( osw_df_filtered$precursor_pep[[1]] )
     } else {
       prec_pkgrp_pep <- NULL
     }
