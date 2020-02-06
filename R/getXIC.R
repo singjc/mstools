@@ -238,7 +238,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       ## Filter OSW dataframe for Best Peak Feature.
       ## Get data for the best peak as defined by the feature with the lowest m_score 
       osw_df %>%
-        dplyr::filter( m_score==min(ms2_m_score) ) -> osw_df_filtered #### No longer filter by peak group
+        dplyr::filter( ms2_m_score==min(ms2_m_score) ) -> osw_df_filtered #### No longer filter by peak group
     }
     
     if ( dim(osw_df_filtered)[1] > 1 ){
