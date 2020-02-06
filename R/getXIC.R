@@ -125,6 +125,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     }
   }
   
+  # Main --------------------------------------------------------------------
+  
   ##*******************************************************
   ##    Extract Precursor Information from Library
   ##*******************************************************
@@ -218,14 +220,14 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         dplyr::filter( Charge==Isoform_Target_Charge ) -> osw_df
     }
     if ( "ipf_pep" %in% osw_df_filtered$ipf_pep ) {
-    
+      
       ## TODO: Could remove this potentially, since the updated getOSWData function should correct for the other NA options
-    if ( !is.null( unlist(osw_df$ipf_pep) ) ){
-      ## Remove rows with NULL value in ipf_pep
-      osw_df %>%
-        dplyr::filter( !is.null(ipf_pep) ) %>%
-        dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
-    }
+      if ( !is.null( unlist(osw_df$ipf_pep) ) ){
+        ## Remove rows with NULL value in ipf_pep
+        osw_df %>%
+          dplyr::filter( !is.null(ipf_pep) ) %>%
+          dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
+      }
     }
     if ( "m_score" %in% osw_df_filtered$m_score ) {
       ## Filter OSW dataframe for Best Peak Feature.
@@ -238,16 +240,12 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_df %>%
         dplyr::filter( m_score==min(ms2_m_score) ) -> osw_df_filtered #### No longer filter by peak group
     }
+    
+    if ( dim(osw_df_filtered)[1] > 1 ){
+      osw_df_filtered %>%
+        dplyr::filter( peak_group_rank==min(peak_group_rank) ) -> osw_df_filtered
       
-      if ( dim(osw_df_filtered)[1] > 1 ){
-        osw_df_filtered %>%
-          dplyr::filter( peak_group_rank==min(peak_group_rank) ) -> osw_df_filtered
-      }
-    } else {
-      ## Get data for the best peak as defined by peak_group_rank == 1
-      osw_df %>%
-        dplyr::filter( peak_group_rank==1 ) -> osw_df_filtered #### No longer filter by peak group
-    }
+    } 
     
     ## Check if openswath dataframe is empty after filtering
     if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe after filtering for peptide and top peak\n' ) ){ 
@@ -463,7 +461,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       graphic_obj <- ggpubr::as_ggplot( gridExtra::arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = grid::unit.c(unit(1, "null"), th )) )                    
     }    
     return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
-  } 
+  } #HEREEEE
   
   ##******************************************************** 
   ## Get Transition IDs for chromatogram data extraction
