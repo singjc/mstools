@@ -268,12 +268,12 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     } else {
       prec_pkgrp_pep <- NULL
     }
-    if ( "ipf_pep" %in% osw_df_filtered$ipf_pep ) {
+    if ( "ipf_pep" %in% colnames(osw_df_filtered) ) {
       ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
     } else {
       ipf_pep <- NULL
     }
-    if ( "m_score" %in% osw_df_filtered$m_score ) {
+    if ( "m_score" %in% colnames(osw_df_filtered) ) {
       ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
     } else {
       ipf_m_score <- NULL
