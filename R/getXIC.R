@@ -266,17 +266,17 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     if ( "precursor_pep" %in% colnames(osw_df_filtered) ){
       prec_pkgrp_pep <- checkNumeric( osw_df_filtered$precursor_pep[[1]] )
     } else {
-      prec_pkgrp_pep <- NULL
+      prec_pkgrp_pep <- NaN
     }
     if ( "ipf_pep" %in% colnames(osw_df_filtered) ) {
       ipf_pep <- checkNumeric( osw_df_filtered$ipf_pep[[1]] )
     } else {
-      ipf_pep <- NULL
+      ipf_pep <- NaN
     }
     if ( "m_score" %in% colnames(osw_df_filtered) ) {
       ipf_m_score <- checkNumeric( osw_df_filtered$m_score[[1]] )
     } else {
-      ipf_m_score <- NULL
+      ipf_m_score <- NaN
     }
     ms2_pkgrp_rank <- checkNumeric( osw_df_filtered$peak_group_rank[[1]], signif.not=F )
     ##****************************************************
@@ -330,9 +330,9 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         ## Make dumy columns for precursor_pep, ipf_pep etc.
         if ( !SCORE_IPF ){
           cat("Non IPF scores is being used, pre-filling with NaN")
-          osw_RT_pkgrps_filtered$precursor_pep <- -1
-          osw_RT_pkgrps_filtered$ipf_pep <- -1
-          osw_RT_pkgrps_filtered$m_score <- -1
+          osw_RT_pkgrps_filtered$precursor_pep <- NaN
+          osw_RT_pkgrps_filtered$ipf_pep <- NaN
+          osw_RT_pkgrps_filtered$m_score <- NaN
         }
         # Define unique set of colors to annotate different peak rank groups
         jBrewColors <- RColorBrewer::brewer.pal(n = dim(osw_RT_pkgrps_filtered)[1], name = "Dark2")
