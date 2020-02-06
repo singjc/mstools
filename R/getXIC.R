@@ -219,7 +219,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_df %>%
         dplyr::filter( Charge==Isoform_Target_Charge ) -> osw_df
     }
-    if ( "ipf_pep" %in% osw_df$ipf_pep ) {
+    if ( "ipf_pep" %in% colnames(osw_df) ) {
       
       ## TODO: Could remove this potentially, since the updated getOSWData function should correct for the other NA options
       if ( !is.null( unlist(osw_df$ipf_pep) ) ){
@@ -229,7 +229,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           dplyr::filter( !is.nan(ipf_pep) ) -> osw_df
       }
     }
-    if ( "m_score" %in% osw_df$m_score ) {
+    if ( "m_score" %in% colnames(osw_df) ) {
       ## Filter OSW dataframe for Best Peak Feature.
       ## Get data for the best peak as defined by the feature with the lowest m_score 
       osw_df %>%
@@ -329,6 +329,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         # TODO: Change this to be more robust
         ## Make dumy columns for precursor_pep, ipf_pep etc.
         if ( !SCORE_IPF ){
+          cat("Non IPF scores is being used, pre-filling with NaN")
           osw_RT_pkgrps_filtered$precursor_pep <- NaN
           osw_RT_pkgrps_filtered$ipf_pep <- NaN
           osw_RT_pkgrps_filtered$m_score <- NaN
