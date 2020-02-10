@@ -34,7 +34,7 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     ## Synth_Phso
     in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
     in_sqMass <-  "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold//Dilution_1_0/chludwig_K150309_013_SW_0_osw_chrom.sqMass" 
-  
+    
     ## Christian sgolay 24
     in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/pyprophet_parametric/merged_runs_group_id_MS1MS2_intergration.osw"
     in_sqMass <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Christian_Doerig_Dataset/results/U_pools_sgolay_24/sqMass/lgillet_L160915_002-Manchester_dirty_phospho_-_Pool_U1_-_SW.mzML.gz_osw_chrom.sqMass"
@@ -43,6 +43,13 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     m_score_filter=0.01
     report_top_single_result=T
     decoy_filter = T; ipf_score=T
+    
+    ## Georges Synth_Phos Results, run by me
+    in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/From_George/02032020/ipfm_nl_JS/psgs.osw"
+    in_sqMass <- "/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_002b_SW_1_32.mzXML.gz"
+    m_score_filter=1
+    report_top_single_result=T
+    decoy_filter = T; ipf_score=F
   }
   
   ## Check if logging has been initialized
@@ -52,7 +59,7 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
   
   list_comparisons <- lapply(sqMass_files, function( in_sqMass ){
     
-    run_name <- gsub('_osw_chrom[.]sqMass', '', basename(in_sqMass))
+    run_name <- gsub('[_osw_]*chrom[.]sqMass|[_osw.]*chrom[.]sqMass|\\..*', '', basename(in_sqMass))
     
     MazamaCoreUtils::logger.info( paste('Reading in results for: ', crayon::blue$bold$underline(run_name), '\n', sep='' ))
     # Extract OpenSwath REsults for Specfific run
@@ -111,7 +118,7 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     if ( report_top_single_result==T ){
       osw_df_fil2 %>% # Keep peptides that have an m_score less than 0.05
         # dplyr::select( Sequence_Group_id, id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, ipf_FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
-        # dplyr::filter( Sequence=="ADEICIAGSPLTPR") %>% # FOR DEBUGGING
+        dplyr::filter( FullPeptideName=="IVVPEGS(UniMod:21)PSR(UniMod:267)") %>% # FOR DEBUGGING
         dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName to further trim data
         dplyr::filter( !!as.name(which_m_score)==min(!!as.name(which_m_score)) ) %>% # Keep result of multiple form entries that passed intial m_score filtering. Keep results with the lowest m_score
         dplyr::ungroup() %>%
@@ -119,6 +126,19 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
       osw_df_fil2 %>% 
         dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName for a second pass of trimming the data
         dplyr::filter( ifelse( n>1, ifelse(peak_group_rank==min(peak_group_rank), T, F), T) ) -> osw_df_fil2 # if the former ends up being true, only keep the results with peakgroup rank 1 annotation
+      ## Remove n count column
+      osw_df_fil2$n <- NULL
+      ## Check to see if there are still more than one entry per run-peptide. 
+      ## Depending on pyprophet scoring, peak_group_rank could be all run if
+      ## using feature_id grouping.
+      osw_df_fil2 %>%
+        dplyr::group_by( Sequence_Group_id ) %>%
+        dplyr::add_count() 
+        dplyr::ungroup() -> osw_df_fil2
+      
+      osw_df_fil2 %>% 
+        dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName for a second pass of trimming the data
+        dplyr::filter( ifelse( n>1, ifelse(d_score==max(d_score), T, F), T) ) -> osw_df_fil2 # if the former ends up being true, only keep the results with highest d_score
       
       #********************#
       #***     DEBUG    ***#
