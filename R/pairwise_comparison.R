@@ -39,9 +39,11 @@ pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
     return( equals(x[1],x[2]))
   }  else if (out=='samePeak'){
     
-    # Decaprecated
-    # ifelse(x$rightWidth[1] >= x$leftWidth[2] & x$rightWidth[2] >= x$leftWidth[1], 'same', 'diff')
-    # print(x)
+    MazamaCoreUtils::logger.trace( '[mstools::pairwise_comparison::samePeak] Calculating if two peaks are the same/overlapping' )
+    
+    
+    MazamaCoreUtils::logger.trace( sprintf("[mstools::pairwise_comparison::samePeak] Input: %s", as.character(str(x))) )
+
     ## Check if any of the entries are NA, if so return single
     if ( any(is.na(x$rightWidth)) | any(is.na(x$leftWidth)) | length(x$leftWidth)==1 | length(x$rightWidth)==1  ){
       # cat("Returning NA\n")
@@ -69,6 +71,8 @@ pairwise_comparison <- function( x, out='delta', P_overlap_threshold=0.2 ){
       }
       
     }
+    
+    MazamaCoreUtils::logger.trace( sprintf('[mstools::pairwise_comparison::samePeak] Border overlap: %s with overlap threshold being: %s\n', P_overlap, P_overlap_threshold) )
     
     return( ifelse(P_overlap > P_overlap_threshold, 1, 0) )
     

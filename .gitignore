@@ -17,3 +17,4 @@ R/getChromatogram.R
 R/data_extraction.R
 R/addDependenciesToDescription.R
 R/get_small_working_dataset.R
+inst/extdata/Synthetic_Dilution_Phosphoproteomics

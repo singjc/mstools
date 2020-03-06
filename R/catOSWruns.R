@@ -17,6 +17,8 @@
 #' @param which_m_score A character vector indicating which m_score to use. (Options: m_score or ms2-m_score. Default: 'm_score')
 #' @param m_score_filter A numeric vector indicating the threshold m_score cut-off value for filtering. (Defualt: 0.05)
 #' @param  report_top_single_result A logical value indificating to keep only the results with the lowest m_score. (Default: TRUE)
+#' @param mod_exclusion A vector of unimod record id modifications to exclude, and replace by nothing. Example: c("35")
+#' @param mod_grouping A dataframe contained uninod ids and random characters to group isomers by. Example: data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )
 #' @return A data.table containing Run ID information
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -24,7 +26,7 @@
 #' @importFrom crayon blue bold underline 
 #' @importFrom dplyr %>% select filter group_by ungroup add_count 
 #' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
-catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_filter=0.05, report_top_single_result=T, run_sub_expression=NULL, ... ){
+catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_filter=0.05, report_top_single_result=T, run_sub_expression=NULL, mod_exclusion=NULL, mod_grouping=NULL, ... ){
   
   DEBUG=F
   if ( DEBUG ) {
@@ -46,10 +48,11 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     
     ## Georges Synth_Phos Results, run by me
     in_osw <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/From_George/02032020/ipfm_nl_JS/psgs.osw"
-    in_sqMass <- "/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_002b_SW_1_32.mzXML.gz"
+    in_sqMass <- "/project/def-hroest/data/synth_phospho_pep/mzML/chludwig_K150309_001b_SW_1_64.mzXML.gz"
     m_score_filter=1
     report_top_single_result=T
     decoy_filter = T; ipf_score=F
+    which_m_score="ms2_m_score"
   }
   
   ## Check if logging has been initialized
@@ -63,9 +66,9 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     
     MazamaCoreUtils::logger.info( paste('Reading in results for: ', crayon::blue$bold$underline(run_name), '\n', sep='' ))
     # Extract OpenSwath REsults for Specfific run
-    osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', ... )
+    osw_df <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, report_top_single_result=report_top_single_result, pep_list='', mod_exclusion=mod_exclusion, mod_grouping=mod_grouping, ... )
     
-    # osw_df <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, pep_list='', decoy_filter = decoy_filter, ipf_score = ipf_score )
+    # osw_df <- getOSWData_( in_osw, run_name, precursor_id='', peptide_id='', mod_residue_position='', peak_group_rank_filter=F, report_top_single_result=report_top_single_result, pep_list='', decoy_filter = decoy_filter, ipf_score = ipf_score, mod_exclusion=mod_exclusion, mod_grouping=mod_grouping )
     
     # # Original OSW Peptide Names
     # osw_pep_names <- gsub('UniMod:4','Carbamidomethyl', gsub('UniMod:35','Oxidation', gsub('UniMod:259','Label:13C(6)15N(2)', gsub('UniMod:267','Label:13C(6)15N(4)', gsub('UniMod:21','Phospho', osw_df$FullPeptideName)))))
@@ -118,14 +121,15 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
     if ( report_top_single_result==T ){
       osw_df_fil2 %>% # Keep peptides that have an m_score less than 0.05
         # dplyr::select( Sequence_Group_id, id_ipf_peptide, id_peptide, id_precursor, RT, leftWidth, rightWidth, Sequence, FullPeptideName, ipf_FullPeptideName, Charge, mz, ipf_pep, peak_group_rank, ms2_m_score, m_score ) %>%
-        dplyr::filter( FullPeptideName=="IVVPEGS(UniMod:21)PSR(UniMod:267)") %>% # FOR DEBUGGING
+        # dplyr::filter( FullPeptideName=="ALTPERNT(Phospho)VPLKNNDSR(Label:13C(6)15N(4))") %>% # FOR DEBUGGING
         dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName to further trim data
         dplyr::filter( !!as.name(which_m_score)==min(!!as.name(which_m_score)) ) %>% # Keep result of multiple form entries that passed intial m_score filtering. Keep results with the lowest m_score
         dplyr::ungroup() %>%
         dplyr::add_count( Sequence_Group_id ) -> osw_df_fil2  # Add column with counts for entries for each peptidoform. There might be cases where a peptidoform has two peak group ranks that have the same m_score (i.e. 0)
       osw_df_fil2 %>% 
         dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName for a second pass of trimming the data
-        dplyr::filter( ifelse( n>1, ifelse(peak_group_rank==min(peak_group_rank), T, F), T) ) -> osw_df_fil2 # if the former ends up being true, only keep the results with peakgroup rank 1 annotation
+        dplyr::filter( ifelse( n>1, ifelse(peak_group_rank==min(peak_group_rank), T, F), T) ) %>%
+        dplyr::ungroup() -> osw_df_fil2 # if the former ends up being true, only keep the results with peakgroup rank 1 annotation
       ## Remove n count column
       osw_df_fil2$n <- NULL
       ## Check to see if there are still more than one entry per run-peptide. 
@@ -133,12 +137,13 @@ catOSWruns_ <- function( sqMass_files, in_osw, which_m_score='m_score', m_score_
       ## using feature_id grouping.
       osw_df_fil2 %>%
         dplyr::group_by( Sequence_Group_id ) %>%
-        dplyr::add_count() 
+        dplyr::add_count() %>%
         dplyr::ungroup() -> osw_df_fil2
       
       osw_df_fil2 %>% 
         dplyr::group_by( Sequence_Group_id ) %>% # Group by FullPeptideName for a second pass of trimming the data
-        dplyr::filter( ifelse( n>1, ifelse(d_score==max(d_score), T, F), T) ) -> osw_df_fil2 # if the former ends up being true, only keep the results with highest d_score
+        dplyr::filter( ifelse( n>1, ifelse(d_score==max(d_score), T, F), T) ) %>%
+        dplyr::ungroup() -> osw_df_fil2 # if the former ends up being true, only keep the results with highest d_score
       
       #********************#
       #***     DEBUG    ***#

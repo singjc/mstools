@@ -22,12 +22,16 @@
 #' @param mod_peptide_id An array of two string vectors indicating a specific modified peptide sequence with both UniMod annotation and actual modification name to extract information for. I.e. c(ANS(Phos)SNSLK, ANS(UniMod:21)SNSLK) (Default: '') 
 #' @param mod_residue_position A numeric value indicating the position of a modification. (Default: '')
 #' @param peak_group_rank_filter A Logical value for filtering OSW results by Peak-Group Rank of 1. (Default: FALSE)
+#' @param  report_top_single_result A logical value indificating to keep only the results with the lowest m_score. (Default: TRUE)
 #' @param pep_list An arrary of string modified peptide sequences to extract information for. (Default: '')
 #' @param mscore_filter A named numeric value to filter results by named q-value. (Default: '') Options: SCORE_MS2, SCORE_IPF, SCORE_PEPTIDE. Example: c(SCORE_MS2=0.01)
 #' @param ipf_filter A numeric value to filter results by IPF PEP. (Default: '')
 #' @param ipf_score A logical value to extract data using IPF Score results. (Default: FALSE)
 #' @param ms2_score A logical value to extract data using MS2 Score results. (Default: TRUE)
 #' @param  decoy_filter A logical value to filter decoys out of final results. (Default: TRUE)
+#' @param mod_exclusion A vector of unimod record id modifications to exclude, and replace by nothing. Example: c("35")
+#' @param mod_grouping A dataframe contained uninod ids and random characters to group isomers by. Example: data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )
+#' @param remove_KR_label A vector of UniMod Ids to remove from Arginine or Lysine. Example:  c("UniMod:259", "UniMod:267")
 #' @return A data.table containing OpenSwath Results information. 
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -46,13 +50,17 @@ getOSWData_ <- function ( oswfile,
                           mod_peptide_id=c('',''),
                           mod_residue_position='',
                           peak_group_rank_filter=FALSE, 
+                          report_top_single_result=FALSE,
                           pep_list='',
                           mscore_filter=c(SCORE_=1),
                           ipf_filter='',
                           ipf_score=FALSE,
                           ms2_score=TRUE,
                           decoy_filter=TRUE,
-                          inference_level='peptide_query'){
+                          inference_level='peptide_query',
+                          mod_exclusion=NULL,
+                          mod_grouping=NULL,
+                          remove_KR_label=NULL){
   
   if ( F ) {
     # oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/lower_product_mz_threshold/pyprophet/group_id/merged_runs_group_id_MS1MS2_intergration_ipf.osw"
@@ -66,6 +74,15 @@ getOSWData_ <- function ( oswfile,
     # Load Requried Libraries
     # library(dplyr)
     # library(dbplyr)
+    oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/From_George/02032020/ipfm_nl_JS/psgs.osw"
+    run_name <- "chludwig_K150309_001b_SW_1_64"
+    run_name <- "chludwig_K150309_006b_SW_1_8.mzXML.gz"
+    run_name <- "chludwig_K150309_013_SW_0.mzXML.gz"
+    run_name <- "chludwig_K150309_004b_SW_1_16.mzXML.gz"
+    mod_exclusion=c(35)
+    mod_grouping=data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )
+    ipf_score=F
+    remove_KR_label <- c("UniMod:259", "UniMod:267")
   }
   
   # Check if logging has been initialized
@@ -115,18 +132,21 @@ getOSWData_ <- function ( oswfile,
        SCORE_IPF.QVALUE AS m_score")
       join_peptide <- sprintf("INNER JOIN PEPTIDE ON ( PEPTIDE.ID = PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID OR PEPTIDE.ID = SCORE_IPF.PEPTIDE_ID )")
       miscellaneous_score_ipf_control <- "AND SCORE_IPF.QVALUE IS NOT NULL AND PEPTIDE.MODIFIED_SEQUENCE NOT LIKE '%UniMod%'"
+      which_m_score <- "m_score"
     } else {
       MazamaCoreUtils::logger.error(sprintf("[mstools::getOSWData_] There was no SCORE_IPF table found in: %s\nFalling back to SCORE_MS2 scores only", oswfile))
       join_score_ipf <- ""
       select_score_ipf <- ""
       join_peptide <- sprintf("INNER JOIN PEPTIDE ON PEPTIDE.ID = PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID")
       miscellaneous_score_ipf_control <- ""
+      which_m_score <- "ms2_m_score"
     }
   } else {
     join_score_ipf <- ""
     select_score_ipf <- ""
     join_peptide <- sprintf("INNER JOIN PEPTIDE ON PEPTIDE.ID = PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID")
     miscellaneous_score_ipf_control <- ""
+    which_m_score <- "ms2_m_score"
   }
   
   ## Filter for a specific precursor id
@@ -391,6 +411,13 @@ ORDER BY transition_group_id,
   MazamaCoreUtils::logger.trace(sprintf("[mstools::getOSWData_] QueryingDatabase: %s\n", stmt))
   df_osw <- dplyr::collect( dplyr::tbl(osw_db, dbplyr::sql(stmt)) )
   
+  MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_(#R:394)] Dimensions of OSW Results file: ", paste(dim(df_osw), collapse = ", "), "\n"))
+  
+  ## Remove Arginine and Lysine labels
+  if ( !is.null(remove_KR_label) ){
+    df_osw$FullPeptideName <- gsub( paste(paste('\\(', remove_KR_label, '\\)', sep=''), collapse = '|'), '',  df_osw$FullPeptideName )
+  }
+  
   ## Get Precursor Table for Precursor_Peptide_Mapping
   stmt2 <- sprintf("SELECT 
 PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID AS id_peptide,
@@ -418,10 +445,46 @@ INNER JOIN PRECURSOR ON PRECURSOR.ID = PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID" )
   # 
   df_osw$FullPeptideName.unimod <- unlist(lapply(df_osw$FullPeptideName, mstools::codenameTounimod))
   
+  ## Get the original assay peptide being tested.
   df_osw %>%
-    dplyr::filter( paste(df_osw$FullPeptideName.unimod, df_osw$id_precursor, sep='_') %in% paste(df_precursor_peptide_mapping_table$FullPeptideName, df_precursor_peptide_mapping_table$id_precursor, sep='_') ) -> df_osw
+    dplyr::group_by( feature_id ) %>%
+    dplyr::mutate( original_assay = id_precursor )  -> df_osw
+  df_osw %>%  
+    dplyr::mutate( original_assay = plyr::mapvalues(x = original_assay, from = df_precursor_peptide_mapping_table$id_precursor, to = df_precursor_peptide_mapping_table$FullPeptideName, warn_missing = FALSE) ) %>%
+    dplyr::ungroup() -> df_osw
+  
+  
+  
+  if ( report_top_single_result ) {
+    MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_] Filtering for top single results based on %s: ", which_m_score, "\n"))
+    ## If extracting for IPF results filter by feature id first
+    if ( ipf_score ){
+    ## Filter by lowest ipf_m_score per feature id
+    df_osw %>%
+      dplyr::group_by( feature_id ) %>%
+      # dplyr::select( feature_id, FullPeptideName.unimod, ms2_pep, ms2_m_score ) %>%
+      # dplyr::filter( feature_id==-1898217479312465)
+      # dplyr::filter( FullPeptideName.unimod=="TYS(UniMod:21)LRNQRAPTAAELQAPPPPPSSTK(UniMod:259)") %>%
+      dplyr::filter( !!rlang::sym(which_m_score) == min(!!rlang::sym(which_m_score)) ) %>%
+      dplyr::ungroup()-> df_osw
+    }
+    
+    ## Filter by lowest ipf_m_score grouped by fullpeptidename.unimod
+    df_osw %>%
+      dplyr::group_by( FullPeptideName.unimod ) %>%
+      # dplyr::filter( FullPeptideName.unimod=="TYS(UniMod:21)LRNQRAPTAAELQAPPPPPSSTK(UniMod:259)") %>%
+      dplyr::filter( !!rlang::sym(which_m_score) == min(!!rlang::sym(which_m_score)) ) %>%
+      dplyr::ungroup()-> df_osw
+  }
+  
+  # ## Filter by matching precursor id
+  # df_osw %>%
+  #   dplyr::filter( paste(df_osw$FullPeptideName.unimod, df_osw$id_precursor, sep='_') %in% paste(df_precursor_peptide_mapping_table$FullPeptideName, df_precursor_peptide_mapping_table$id_precursor, sep='_') ) -> df_osw
+  
   ## Remove tmp column
   df_osw$FullPeptideName.unimod <- NULL
+  
+  MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_(#R:428)] Dimensions of OSW Results file: ", paste(dim(df_osw), collapse = ", "), "\n"))
   
   ## Context Level Inference
   
@@ -478,7 +541,15 @@ INNER JOIN PRECURSOR ON PRECURSOR.ID = PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID" )
     MazamaCoreUtils::logger.trace("[mstools::getOSWData_] Protein level inference is not yet supported. Submit Feature Request on GitHub to singjc/mstools")
   } 
   
-  MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_] Dimensions of OSW Results file: ", dim(df_osw), "\n"))
+  MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_(#R:405)] Dimensions of OSW Results file: ", paste(dim(df_osw), collapse = ", "), "\n"))
+  
+  # Ensure UniMod Mapping Convention
+  df_osw$FullPeptideName <- unlist(lapply( df_osw$FullPeptideName, mstools::codenameTounimod ))
+  
+  # Append isomer character id
+  df_osw$isomer_char_id <- unlist(lapply( df_osw$FullPeptideName, mstools::unimodTouniisoid, mod_exclusion=mod_exclusion, mod_grouping=mod_grouping ))
+  
+  MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_(#R:490)] Dimensions of OSW Results file: ", paste(dim(df_osw), collapse = ", "), "\n"))
   
   # Disconnect from database
   MazamaCoreUtils::logger.trace(sprintf("[mstools::getOSWData_] Disconnecting From Database: %s\n", oswfile))

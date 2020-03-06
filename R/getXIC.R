@@ -176,7 +176,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       dplyr::filter( DETECTING==1 ) -> df_lib_filtered
     
     ## @TODO: Need to make this more robust for other file formats or naming conventions
-    run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$|[.]chrom.sqMass$', '', basename(chromatogram_file))
+    run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$|[.]chrom.sqMass$|_osw[.]chrom[.]sqMass', '', basename(chromatogram_file))
     ## @TODO: Maybe remove this or leave the whole filename. This is very specific for 3 datasets..
     run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
     ## Replace UniMod name with actual modification name
@@ -348,34 +348,41 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         
         if ( show_peak_info_tbl ){
           MazamaCoreUtils::logger.info(  '---> Adding Peak Information Table...\n')
-          for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
-            ## get scores and format them                                                                                                             
-            rank <- osw_RT_pkgrps_filtered$peak_group_rank[RT_idx]                                                                      
-            ms2_m_score <- formatC(osw_RT_pkgrps_filtered$ms2_m_score[RT_idx], format = "e", digits = 3)      
-            prec_pkgrp_pep <- checkNumeric( osw_RT_pkgrps_filtered$precursor_pep[RT_idx] )
-            ipf_pep <- formatC(osw_RT_pkgrps_filtered$ipf_pep[RT_idx], format = "e", digits = 3)                                                       
-            ipf_m_score <- formatC(osw_RT_pkgrps_filtered$m_score[RT_idx], format = "e", digits = 3) 
-            point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
-                                          RT_m = round((osw_RT_pkgrps_filtered$RT[RT_idx])/60, digits=2),
-                                          rank = rank, 
-                                          ms2_m_score = ms2_m_score,
-                                          ipf_pep = ipf_pep,
-                                          ipf_m_score = ipf_m_score
-            )
-            
-            
-            #****************************************************                                                                                       
-            # Check to see if master annotation table exits                                                                                             
-            #****************************************************                                                                                       
-            if ( !exists("master_annotation_table") ){                                                                                                  
-              master_annotation_table <- point_dataframe                                                                                                
-            } else {                                                                                                                                    
-              master_annotation_table <- rbind(master_annotation_table, point_dataframe)                                                                
-            }
-            
-            ## Clearup
-            # rm(osw_RT_pkgrps_filtered_subset)
-          } # End for loop
+          tryCatch( expr = {
+            for( RT_idx in seq(1, dim(osw_RT_pkgrps_filtered)[1],1) ){
+              ## get scores and format them                                                                                                             
+              rank <- osw_RT_pkgrps_filtered$peak_group_rank[RT_idx]                                                                      
+              ms2_m_score <- formatC(osw_RT_pkgrps_filtered$ms2_m_score[RT_idx], format = "e", digits = 3)      
+              prec_pkgrp_pep <- checkNumeric( osw_RT_pkgrps_filtered$precursor_pep[RT_idx] )
+              ipf_pep <- formatC(osw_RT_pkgrps_filtered$ipf_pep[RT_idx], format = "e", digits = 3)                                                       
+              ipf_m_score <- formatC(osw_RT_pkgrps_filtered$m_score[RT_idx], format = "e", digits = 3) 
+              point_dataframe <- data.frame(RT=(osw_RT_pkgrps_filtered$RT[RT_idx]),
+                                            RT_m = round((osw_RT_pkgrps_filtered$RT[RT_idx])/60, digits=2),
+                                            rank = rank, 
+                                            ms2_m_score = ms2_m_score,
+                                            ipf_pep = ipf_pep,
+                                            ipf_m_score = ipf_m_score
+              )
+              
+              
+              #****************************************************                                                                                       
+              # Check to see if master annotation table exits                                                                                             
+              #****************************************************                                                                                       
+              if ( !exists("master_annotation_table") ){                                                                                                  
+                master_annotation_table <- point_dataframe                                                                                                
+              } else {                                                                                                                                    
+                master_annotation_table <- rbind(master_annotation_table, point_dataframe)                                                                
+              }
+              
+              ## Clearup
+              # rm(osw_RT_pkgrps_filtered_subset)
+            } # End for loop
+          },
+          error = function(e){
+            MazamaCoreUtils::logger.error(sprintf('[mstooks::getXIC] The following error occured while generating peak info table for plotting:\n%s', e$message))
+          })
+          
+          
         } # End show_peak_info_tbl
         
         if ( show_peak_info_tbl ){
@@ -461,6 +468,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     if ( exists("annotationGrob") & show_peak_info_tbl ){                                                                                                                    
       graphic_obj <- ggpubr::as_ggplot( gridExtra::arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = grid::unit.c(unit(1, "null"), th )) )                    
     }    
+    MazamaCoreUtils::logger.info(sprintf('[mstooks::getXIC] Returning Final XIC plot object for:\n%s', mod))
     return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
   } #HEREEEE
   

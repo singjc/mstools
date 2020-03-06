@@ -20,6 +20,7 @@
 #' @importFrom dplyr %>% select
 #' @importFrom xml2 read_xml xml_ns xml_find_all xml_attrs
 #' @importFrom purrr map map_df
+#' @importFrom stringi stri_rand_strings
 generateUniModMapping_ <- function( unimod_xml=NULL ){
   # library(xml2)
   # library(purrr)
@@ -37,7 +38,9 @@ generateUniModMapping_ <- function( unimod_xml=NULL ){
   purrr::map(tmp, xml2::xml_attrs) %>%
     purrr::map_df( as.list ) %>%
     dplyr::select( record_id, ex_code_name ) -> unimod_mapping
-  # save(unimod_mapping, file = './data/unimod_mapping.RData')
+  ## Generate random char id for each entry
+  unimod_mapping$rand_char_id <- stringi::stri_rand_strings(dim(unimod_mapping)[1], 5)
+  # save(unimod_mapping, file = './data/unimod_mapping.RData', version = 2)
   ## Return a datable with UniMod ID and modification code name mapping
   return( unimod_mapping )
 }
@@ -137,6 +140,81 @@ codenameTounimod <- function( mod_seq, out='sequence'){
   } else {
     out_code_names <- NULL
     converted_mod_seq <- mod_seq
+  }
+  if ( out=='sequence' ){
+    return( converted_mod_seq )
+  } else {
+    return( out_code_names )
+  }
+}
+
+## Dummy Documentation
+#' @title Conversion from UniMod ID to a unique string isomeric id
+#' @usage unimodTouniisoid( mod_seq, out='sequence' )
+#' @param mod_seq A character vector containing of a peptide sequence, containing UniMod IDs to be converted to code names
+#' @param out A character vector. Default: 'sequence' will return mod_seq with covnerted unimod to codename. Otherwise, will return converted codename
+#' @param mod_exclusion A vector of unimod record id modifications to exclude, and replace by nothing. Example: c("35")
+#' @param mod_grouping A dataframe contained uninod ids and random characters to group isomers by. Example: data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )
+#' @return A character vector. Returned mod_seq with converted codename or returned codename
+#' @name unimodTouniisoid
+#' @examples 
+#' mod_seq <- "EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
+#' ## Will return a unique string id that can be used to group isomers
+#' unimodTouniisoid( mod_seq )
+#' ## Out
+#' ## [1] "EGHAQNPM(Oxidation)EPS(Phospho)VPQLS(Phospho)LM(Oxidation)DVK"
+#' @importFrom plyr mapvalues
+#' @importFrom dplyr %>%
+#' @importFrom stringr str_replace_all str_sort
+NULL
+
+#' @export
+unimodTouniisoid <- function( mod_seq, out="sequence", mod_exclusion=NULL, mod_grouping=NULL ){
+  DEBUG = F
+  if ( DEBUG ){
+    mod_seq <- "EGHAQNPMEPSVPQLSLMDVK"
+    mod_seq <- "EGHAQNPMEPSVPQLS(UniMod:21)LMDVK"
+    mod_seq <- "EGHAQNPM(UniMod:35)EPS(UniMod:21)VPQLS(UniMod:21)LM(UniMod:35)DVK"
+    mod_seq <- "ADEIC(UniMod:4)IAGS(UniMod:21)PLTPR"
+    mod_exclusion <- c("35")
+    mod_grouping <- data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )
+  }
+  ## Get Modifications
+  modification_labels <- base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
+  ## Get unimod mapping table
+  unimod_mapping <-  mstools::unimod_mapping
+  ## Check if there were any modifications
+  if ( length(modification_labels) >= 1 ){
+    ## Check for any modifications to exclude from conversion, replace with nothing
+    if ( !is.null(mod_exclusion) ){
+      ## Convert to character if a numeric vector is given
+      if ( is.numeric(mod_exclusion) ){
+        mod_exclusion <- as.character(mod_exclusion)
+      }
+      ## Replace entries that are not to have a covnerted seqeunce if with an empty char
+      unimod_mapping$rand_char_id[ which( unimod_mapping$record_id %in% mod_exclusion ) ] <- ""
+    }
+    ## Check for any entries that should be grouped by the same repalcement
+    if( !is.null(mod_grouping) ){
+      ## Replace random char id with provided character
+      unimod_mapping$rand_char_id[ which( unimod_mapping$record_id %in% mod_grouping$record_id ) ] <- mod_grouping$rand_char_id
+    }
+    ## get UniMod IDs
+    query_unimod_ids <- gsub( "\\(UniMod:(\\d+)\\)", "\\1", (modification_labels) )
+    ## convert query UniMod IDs to modification code name
+    out_code_names <- plyr::mapvalues(query_unimod_ids, from = unimod_mapping$record_id, to = unimod_mapping$rand_char_id, warn_missing = FALSE)
+    names(out_code_names) <- gsub('\\(|\\)','',modification_labels)
+    ## Convery to code name
+    mod_seq %>%
+      stringr::str_replace_all( out_code_names ) -> converted_mod_seq
+    ## Remove brackets
+    converted_mod_seq <- gsub('\\(|\\)','',converted_mod_seq)
+    ## Sort based on character to create a unique string
+    converted_mod_seq <- paste(stringr::str_sort(base::strsplit(converted_mod_seq,"")[[1]]),collapse="")
+  } else {
+    out_code_names <- NULL
+    converted_mod_seq <- mod_seq
+    converted_mod_seq <- paste(stringr::str_sort(base::strsplit(converted_mod_seq,"")[[1]]),collapse="")
   }
   if ( out=='sequence' ){
     return( converted_mod_seq )

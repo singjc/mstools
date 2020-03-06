@@ -100,7 +100,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
    
     record_list <- parallel::mclapply( seq(1,length(sqMass_files),1), function(file_idx){
       in_sqMass <- sqMass_files[file_idx]
-      run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$|[.]chrom.sqMass$', '', basename(in_sqMass))
+      run_name <- gsub('_osw_chrom[.]sqMass$|[.]chrom.mzML$|[.]chrom.sqMass$|_osw[.]chrom[.]sqMass', '', basename(in_sqMass))
       run <- gsub('_SW*|_SW_0|(*_-_SW[.]mzML[.]gz|[.]chrom[.]sqMass)', '', gsub('yanliu_I170114_\\d+_|chludwig_K150309_|lgillet_L\\d+_\\d+-Manchester_dirty_phospho_-_', '', run_name))
       
       MazamaCoreUtils::logger.info( crayon::blue('@ Run: ', run),'\n', sep='' )
@@ -422,24 +422,30 @@ XICMasterPlotFcn_ <- function( dup_peps,
             ###################################
             ##     ADD OSW RESULTS INFO     ###
             ###################################
-            g <- mstools::getXIC( graphic_obj = g, 
-                                  df_lib = df_lib, 
-                                  mod = mod, 
-                                  Isoform_Target_Charge = Isoform_Target_Charge,
-                                  chromatogram_file = in_sqMass, 
-                                  transition_type='none', 
-                                  uni_mod_list = uni_mod_list, 
-                                  max_Int = max_Int, 
-                                  in_osw = in_osw, 
-                                  SCORE_IPF=FALSE,
-                                  annotate_best_pkgrp=annotate_best_pkgrp,
-                                  doFacetZoom=doFacetZoom, 
-                                  top_trans_mod_list=NULL, 
-                                  RT_pkgrps=RT_pkgrps, 
-                                  show_manual_annotation=show_manual_annotation, 
-                                  show_peak_info_tbl=show_peak_info_tbl,
-                                  FacetFcnCall=FacetFcnCall, 
-                                  show_legend = show_legend  )
+            tryCatch( 
+              expr = {
+                g <- mstools::getXIC( graphic_obj = g, 
+                                      df_lib = df_lib, 
+                                      mod = mod, 
+                                      Isoform_Target_Charge = Isoform_Target_Charge,
+                                      chromatogram_file = in_sqMass, 
+                                      transition_type='none', 
+                                      uni_mod_list = uni_mod_list, 
+                                      max_Int = max_Int, 
+                                      in_osw = in_osw, 
+                                      SCORE_IPF=SCORE_IPF,
+                                      annotate_best_pkgrp=annotate_best_pkgrp,
+                                      doFacetZoom=doFacetZoom, 
+                                      top_trans_mod_list=NULL, 
+                                      RT_pkgrps=RT_pkgrps, 
+                                      show_manual_annotation=show_manual_annotation, 
+                                      show_peak_info_tbl=show_peak_info_tbl,
+                                      FacetFcnCall=FacetFcnCall, 
+                                      show_legend = show_legend  )
+              },
+              error = function(e){
+                MazamaCoreUtils::logger.error(sprintf('[mstools::XICMasterPlotFcn] There was an issue while adding OpenSWATH information to XIC plot:\n%s', e$message))
+              })
             max_Int <- g$max_Int
             g <- g$graphic_obj
             
@@ -462,8 +468,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
           MazamaCoreUtils::logger.error(crayon::red('Reached CPU Timelimit for ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
         } else {
           # error not related to timeout
-          MazamaCoreUtils::logger.error(crayon::red('There was an issue trying to process ', crayon::underline(pep), ' from run: '), crayon::underline(run), '\n', sep='')
-          stop(e$message)
+          MazamaCoreUtils::logger.error(sprintf('[mstools::XICMasterPlotFcn] There was an issue trying to process %s from run %s:\n%s', crayon::underline(pep), crayon::underline(run), e$message) )
         }
       }
       )

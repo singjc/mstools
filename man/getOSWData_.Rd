@@ -14,13 +14,17 @@ getOSWData_(
   mod_peptide_id = c("", ""),
   mod_residue_position = "",
   peak_group_rank_filter = FALSE,
+  report_top_single_result = FALSE,
   pep_list = "",
   mscore_filter = c(SCORE_ = 1),
   ipf_filter = "",
   ipf_score = FALSE,
   ms2_score = TRUE,
   decoy_filter = TRUE,
-  inference_level = "peptide_query"
+  inference_level = "peptide_query",
+  mod_exclusion = NULL,
+  mod_grouping = NULL,
+  remove_KR_label = NULL
 )
 }
 \arguments{
@@ -42,6 +46,8 @@ getOSWData_(
 
 \item{peak_group_rank_filter}{A Logical value for filtering OSW results by Peak-Group Rank of 1. (Default: FALSE)}
 
+\item{report_top_single_result}{A logical value indificating to keep only the results with the lowest m_score. (Default: TRUE)}
+
 \item{pep_list}{An arrary of string modified peptide sequences to extract information for. (Default: '')}
 
 \item{mscore_filter}{A named numeric value to filter results by named q-value. (Default: '') Options: SCORE_MS2, SCORE_IPF, SCORE_PEPTIDE. Example: c(SCORE_MS2=0.01)}
@@ -53,6 +59,12 @@ getOSWData_(
 \item{ms2_score}{A logical value to extract data using MS2 Score results. (Default: TRUE)}
 
 \item{decoy_filter}{A logical value to filter decoys out of final results. (Default: TRUE)}
+
+\item{mod_exclusion}{A vector of unimod record id modifications to exclude, and replace by nothing. Example: c("35")}
+
+\item{mod_grouping}{A dataframe contained uninod ids and random characters to group isomers by. Example: data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )}
+
+\item{remove_KR_label}{A vector of UniMod Ids to remove from Arginine or Lysine. Example:  c("UniMod:259", "UniMod:267")}
 }
 \value{
 A data.table containing OpenSwath Results information.

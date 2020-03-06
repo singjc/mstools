@@ -11,6 +11,8 @@ catOSWruns_(
   m_score_filter = 0.05,
   report_top_single_result = T,
   run_sub_expression = NULL,
+  mod_exclusion = NULL,
+  mod_grouping = NULL,
   ...
 )
 }
@@ -24,6 +26,10 @@ catOSWruns_(
 \item{m_score_filter}{A numeric vector indicating the threshold m_score cut-off value for filtering. (Defualt: 0.05)}
 
 \item{report_top_single_result}{A logical value indificating to keep only the results with the lowest m_score. (Default: TRUE)}
+
+\item{mod_exclusion}{A vector of unimod record id modifications to exclude, and replace by nothing. Example: c("35")}
+
+\item{mod_grouping}{A dataframe contained uninod ids and random characters to group isomers by. Example: data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )}
 }
 \value{
 A data.table containing Run ID information
