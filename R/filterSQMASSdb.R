@@ -35,7 +35,7 @@ filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter) {
     expr = {
       
       ## Check if logging has been initialized
-      if( MazamaCoreUtils::logger.isInitialized() ){
+      if( !MazamaCoreUtils::logger.isInitialized() ){
         log_setup()
       }
       

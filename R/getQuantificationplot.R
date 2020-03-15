@@ -39,6 +39,10 @@ getQuantificationplot <- function( data, fdr_threshold=0.05, scores="ipf_fdr", i
     true_peptides <- "ipf_TP"
     normalzied_relative_intensity=T
     data <- bm_struct$bm
+    
+    scores=c("ipf_fdr", "ipf_aligned_fdr")
+    
+    
   }
   
   data %>%

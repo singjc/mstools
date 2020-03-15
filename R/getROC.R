@@ -28,6 +28,7 @@ getROC <- function( data, scores, p.title = NULL, fdr_threshold = c(0.01, 0.05) 
   require(RColorBrewer)
   if ( F ){
   data <- bm_struct$bm
+  data <- bm
   scores <- c( "osw_fdr", "ipf_fdr")
   scores <- c( "osw_fdr", "osw_aligned_fdr")
   p.title <- NULL

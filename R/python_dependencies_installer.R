@@ -24,10 +24,10 @@ find_python <- function(){
 install_python_dependencies <- function(method = "auto", conda = "auto") {
   
   ## Check if logging has been initialized
-  if( MazamaCoreUtils::logger.isInitialized() ){
+  if( !MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
   }
-  MazamaCoreUtils::logger.info( "** Checking for Required Python Modules ** ")
+  MazamaCoreUtils::logger.trace( "** Checking for Required Python Modules ** ")
   
   ## Check for available versions of python
   pythons_available <- reticulate::py_discover_config()
@@ -42,20 +42,20 @@ install_python_dependencies <- function(method = "auto", conda = "auto") {
   pandas_available=FALSE
   if ( !reticulate::py_module_available("PyMSNumpress") ){
     if ( !reticulate::py_module_available("cython") ){
-      MazamaCoreUtils::logger.info( "** -> Installing Python Module: cython" )
+      MazamaCoreUtils::logger.trace( "** -> Installing Python Module: cython" )
       reticulate::py_install( "cython", pip=TRUE )
     }
-    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pymsnumpress" )
+    MazamaCoreUtils::logger.trace( "** -> Installing Python Module: pymsnumpress" )
     reticulate::py_install( "PyMSNumpress", pip=TRUE )
     pymsnumpress_available=TRUE
   }
   if ( !reticulate::py_module_available("sqlite3") ){
-    MazamaCoreUtils::logger.info( "** -> Installing Python Module: sqlite3" ) 
+    MazamaCoreUtils::logger.trace( "** -> Installing Python Module: sqlite3" ) 
     reticulate::py_install("sqlite3", pip=TRUE )
     sqlite3_available=TRUE
   }
   if ( !reticulate::py_module_available("pandas") ){
-    MazamaCoreUtils::logger.info( "** -> Installing Python Module: pandas" )
+    MazamaCoreUtils::logger.trace( "** -> Installing Python Module: pandas" )
     reticulate::py_install("pandas", pip=TRUE )
     pandas_available=TRUE
   }

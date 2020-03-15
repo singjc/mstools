@@ -27,7 +27,7 @@
 #' @importFrom ROCR prediction performance
 #' @importFrom ggplot2 ggplot geom_bar ggtitle theme element_text scale_y_continuous scale_fill_manual
 #' @importFrom RColorBrewer brewer.pal
-getIdentificationsBarplot <- function( data, data_to_show=NULL, fdr_threshold = 0.05, p.title = NULL, dataset=""  ) {
+getIdentificationsBarplot <- function( data, data_to_show=NULL, include_GT=NULL, var_order=NULL, fdr_threshold = 0.05, p.title = NULL, dataset=""  ) {
   if (F){
     osw_df_bm <- bm_struct$osw_df_bm
     ipf_df_bm <- bm_struct$ipf_df_bm
@@ -35,6 +35,9 @@ getIdentificationsBarplot <- function( data, data_to_show=NULL, fdr_threshold = 
     p.title = NULL
     dataset=NULL
     data <- bm_struct$bm_list
+    include_GT <- "Identified | Ambiguous"
+    var_order <- c("GT_TP", "GT_FP", "osw_TP", "osw_FP", "ipf_TP", "ipf_FP", "ipf_aligned_TP", "ipf_aligned_FP")
+    rev(sort(unique(confusion_dt$variable)))
   }
   
   if ( is.null( data_to_show ) ) data_to_show <- names(data)
@@ -89,25 +92,43 @@ getIdentificationsBarplot <- function( data, data_to_show=NULL, fdr_threshold = 
     ) %>%
     dplyr::ungroup() -> confusion_dt
   
+  if ( !is.null(include_GT) ){
+  data[[1]] %>%
+    dplyr::filter( eval(parse(text=include_GT)) ) %>%
+    dplyr::mutate( Run_ID = gsub(".*_(Run_.*)$", "\\1", Run_Grouping) ) %>%
+    dplyr::select( Run_ID ) %>%
+    dplyr::group_by( Run_ID ) %>%
+    count(name = "TP") %>%
+    dplyr::mutate( FP = 0,
+                   TN = 0,
+                   FN = 0,
+                   method = "GT"
+                 ) -> confusion_dt_GT
+    
+    confusion_dt <- rbindlist( list(confusion_dt, confusion_dt_GT), use.names=T )
+  }
+  
   confusion_dt <- melt(confusion_dt)
   confusion_dt %>% dplyr::filter( grepl("*TP|*FP", variable)) -> confusion_dt
   confusion_dt$variable  <- paste(confusion_dt$method, confusion_dt$variable , sep='_')
   confusion_dt$variable <- as.character(confusion_dt$variable)
-  confusion_dt$variable  <- factor( confusion_dt$variable, levels = rev(sort(unique(confusion_dt$variable))) )
+  ## Specify Factor Ordering of variables
+  if ( is.null(var_order) ) var_order <- rev(sort(unique(confusion_dt$variable)))
+  confusion_dt$variable  <- factor( confusion_dt$variable, levels = var_order )
+  
   if (  dataset=="Synth_Dilution"  ){
     confusion_dt$Run_ID <- plyr::mapvalues(x = confusion_dt$Run, from = c('Run_013', 'Run_012', 'Run_011', 'Run_010', 'Run_009', 'Run_008', 'Run_007', 'Run_006', 'Run_005', 'Run_004', 'Run_003', 'Run_002', 'Run_001'), to = c("1:0", "1:1", "1:3", "1:4", "1:7", "1:9", "1:15", "1:19", "1:31", "1:39", "1:63", "1:79", "1:127") )
     confusion_dt$Run_ID <- factor( confusion_dt$Run_ID, levels=c("1:0", "1:1", "1:3", "1:4", "1:7", "1:9", "1:15", "1:19", "1:31", "1:39", "1:63", "1:79", "1:127"))
   } 
   
+  ## Define color pallete functions for TP's and FP's
   TP_col_pallete <- colorRampPalette(c("green", "darkgreen"))
-  
   FP_col_pallete <- colorRampPalette(c("red", "darkred"))
-  
-  fill_cols <- c(TP_col_pallete(length(unique(confusion_dt$method))), FP_col_pallete(length(unique(confusion_dt$method))))
-  
-  # fill_cols <- c("green1", "green4", "tomato", "red")
-  
-  names(fill_cols) <- unique(confusion_dt$variable)
+  ## Generate unique set of  variable named colors for TPs and FPs for unique set of variables
+  fill_cols <- c( TP_col_pallete( length(grep("*_TP", levels(confusion_dt$variable), value=T)) ), FP_col_pallete( length(grep("*_FP", levels(confusion_dt$variable), value=T)) ) )
+  names(fill_cols) <- c(grep("*_TP", levels(confusion_dt$variable), value=T), grep("*_FP", levels(confusion_dt$variable), value=T) )
+  ## Order color pallete in same fashion as variable ordering
+  fill_cols <- fill_cols[order(factor(names(fill_cols), levels=(var_order)))]
   
   p.out <- ggplot( ) + 
     geom_bar( data=dplyr::select(confusion_dt, c(Run_ID, variable, value)) %>% dplyr::filter(grepl("*TP", variable)), 
@@ -118,7 +139,7 @@ getIdentificationsBarplot <- function( data, data_to_show=NULL, fdr_threshold = 
     ) +
     ggtitle( p.title ) +
     scale_y_continuous(breaks = seq(-(ceiling(max(confusion_dt$value)/50)*50), (ceiling(max(confusion_dt$value)/50)*50), 50), labels = abs(seq(-(ceiling(max(confusion_dt$value)/50)*50), (ceiling(max(confusion_dt$value)/50)*50), 50))) +
-    scale_fill_manual("legend", values = fill_cols ) +
+    scale_fill_manual( values = fill_cols, name = element_blank() ) +
     labs( x="", y= paste("Detected Peptides (", fdr_threshold, "FDR )", sep=" " ) ) +
     theme( plot.title = element_text(hjust=0.5, size = 20),
            plot.subtitle = element_text(hjust=0.5),
@@ -128,5 +149,7 @@ getIdentificationsBarplot <- function( data, data_to_show=NULL, fdr_threshold = 
            legend.text = element_text(size=14),
            legend.title = element_text(size = 16),
            legend.position = "right") 
+  
+  
   return( p.out )
 }

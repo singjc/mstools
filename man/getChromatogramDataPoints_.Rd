@@ -4,14 +4,33 @@
 \alias{getChromatogramDataPoints_}
 \title{Extract Chromatographic data (Retention Time and Intensity) from mzML or sqMass chromatograms.}
 \usage{
-getChromatogramDataPoints_(filename, frag_ids, mzPntrs = NULL)
+getChromatogramDataPoints_(
+  filename,
+  frag_ids,
+  id_type = "transition_ids",
+  name_time = "RT",
+  name_intensity = "Int",
+  mzPntrs = NULL,
+  SgolayFiltOrd = NULL,
+  SgolayFiltLen = NULL
+)
 }
 \arguments{
 \item{filename}{A character vector of the absolute path and filename of the chromatogram file. (Must be .mzML or sqMass format)}
 
 \item{frag_ids}{A list of a vector containing fragment ids}
 
+\item{id_type}{A character indicating if the passed frag_ids is of type 'transition_ids' or 'chromatogramIndex'}
+
+\item{name_time}{A character vector to name retention column}
+
+\item{name_intensity}{A character vector to name Intensity column. You can pass a character vectory of a function that will be evaluated to a string. i.e. "paste0('X',  data_row$FRAGMENT_ID )"}
+
 \item{mzPntrs}{A list object containing cached mzR objects.}
+
+\item{SgolayFiltOrd}{(integer) It defines the polynomial order of filer.}
+
+\item{SgolayFiltLen}{(integer) Must be an odd number. It defines the length of filter.}
 }
 \value{
 A list of fragment ids containing 2 arrays for Retention time and Intensity
