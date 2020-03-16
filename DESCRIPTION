@@ -20,7 +20,7 @@ Imports:
     DBI, dbplyr, RSQLite, xml2,
     data.table, tibble,
     ggplot2, ggpubr, gridExtra,
-    mzR, 
+    mzR, zoo,
     signal,
     rlang,
     stringr,
