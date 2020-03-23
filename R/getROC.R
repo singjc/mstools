@@ -53,7 +53,7 @@ getROC <- function( data, scores, p.title = NULL, fdr_threshold = c(0.01, 0.05) 
   ## Plot ROC data
   g <- ggplot( ) +
     geom_line( data=roc_data, mapping=aes(y=tpr, x=fpr, col=method ), show.legend = T ) +
-    geom_point( data=roc_data, mapping=aes(y=tpr, x=fpr, col=method ), size=1.3, show.legend = T )
+    # geom_point( data=roc_data, mapping=aes(y=tpr, x=fpr, col=method ), size=1, show.legend = T )
 
   ## Add FDR Thresholds
   fdr_vline_values <- rep(2, length(fdr_threshold))

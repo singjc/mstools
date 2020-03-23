@@ -3,7 +3,7 @@
 #' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn 
 find_python <- function(){
   ## Check if logging has been initialized
-  if( MazamaCoreUtils::logger.isInitialized() ){
+  if( !MazamaCoreUtils::logger.isInitialized() ){
     log_setup()
   }
   
