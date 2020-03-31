@@ -7,6 +7,9 @@
 getIdentificationsBarplot(
   data,
   data_to_show = NULL,
+  include_GT = NULL,
+  var_order = NULL,
+  show_cumulative = FALSE,
   fdr_threshold = 0.05,
   p.title = NULL,
   dataset = ""

@@ -47,7 +47,7 @@
 #' @importFrom ggpubr as_ggplot 
 #' @importFrom data.table set
 #' @importFrom plyr mapvalues
-#' @importFrom dplyr %>% filter select bind_rows mutate group_by top_n arrange 
+#' @importFrom dplyr %>% filter select bind_rows mutate group_by top_n arrange contains
 #' @importFrom tibble rownames_to_column
 #' @importFrom rlang sym
 #' @importFrom signal sgolayfilt
@@ -65,6 +65,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
                     transition_type=c('detecting'), 
                     uni_mod_list=NULL, 
                     max_Int=NULL, 
+                    retention_time_limits = list(minRT=-Inf, maxRT=Inf),
                     smooth_chromatogram=list(p = 4, n = 9),
                     doFacetZoom=FALSE, 
                     FacetFcnCall=NULL,
@@ -323,7 +324,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
       osw_RT_pkgrps %>%
         dplyr::filter( RT %in% RT_pkgrps ) %>%
         dplyr::filter( RT != osw_df_filtered$RT ) %>%
-        dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, contains("ipf_pep"), contains("m_score"), contains("precursor_pep") ) -> osw_RT_pkgrps_filtered
+        dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, dplyr::contains("ipf_pep"), dplyr::contains("m_score"), dplyr::contains("precursor_pep") ) -> osw_RT_pkgrps_filtered
       if ( dim(osw_RT_pkgrps_filtered)[1]!=0 ){
         
         # TODO: Change this to be more robust
@@ -523,6 +524,13 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     df_plot <- dplyr::bind_rows(parallel::mclapply(chromatogram_data_points_list, data.frame), .id='Transition')
     
   }
+  
+  ##****************************
+  ##  Filter RT
+  ##****************************
+  df_plot %>%
+    data.table::as.data.table() %>%
+    dplyr::filter( (RT > retention_time_limits$minRT ) & (RT < retention_time_limits$maxRT) ) -> df_plot
   
   ## Append Transition information to Int-RT dataframe, filter for precursor transition or MS2 transitions 
   if ( transition_type=='precursor' ){
@@ -912,6 +920,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         tmp_plot %>%
           dplyr::filter( TRANSITION_ID %in% as.matrix(Ordered_top_Int) ) -> tmp_plot
         
+        print(tmp_plot)
+        
         if ( dim(tmp_plot)[1] > 0){
           
           if( !is.null(transition_dt) ) {
@@ -929,8 +939,9 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
               guides(col=guide_legend(title="Identifying")) 
             
           } else {
+            ## TODO WHAT IS THIS DOING!?
             graphic_obj <- graphic_obj + 
-              ggplot2::geom_line(data= dplyr::filter(df_plot, TRANSITION_ID==206765), aes(RT, Int, col=Transition, text=sprintf("Transition: %s", Transition)), 
+              ggplot2::geom_line(data= tmp_plot, aes(RT, Int, col=Transition, text=sprintf("Transition: %s", Transition)), 
                                  linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) +
               guides(col=guide_legend(title="Identifying")) 
           }

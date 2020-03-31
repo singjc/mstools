@@ -18,6 +18,7 @@ getXIC(
   transition_type = c("detecting"),
   uni_mod_list = NULL,
   max_Int = NULL,
+  retention_time_limits = list(minRT = -Inf, maxRT = Inf),
   smooth_chromatogram = list(p = 4, n = 9),
   doFacetZoom = FALSE,
   FacetFcnCall = NULL,

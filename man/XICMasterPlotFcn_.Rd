@@ -19,6 +19,7 @@ XICMasterPlotFcn_(
   plotIdentifying.Shared = F,
   plotIdentifying.Against = F,
   smooth_chromatogram = list(p = 4, n = 9),
+  retention_time_limits = list(minRT = -Inf, maxRT = Inf),
   doFacetZoom = F,
   FacetFcnCall = NULL,
   doPlot = T,

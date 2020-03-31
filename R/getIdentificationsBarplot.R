@@ -130,7 +130,7 @@ getIdentificationsBarplot <- function( data, data_to_show=NULL, include_GT=NULL,
   if ( is.null(var_order) ) var_order <- rev(sort(unique(confusion_dt$variable)))
   confusion_dt$variable  <- factor( confusion_dt$variable, levels = var_order )
   
-  if (  dataset=="Synth_Dilution"  ){
+  if (  dataset=="Synth_Dilution" & !show_cumulative  ){
     confusion_dt$Run_ID <- plyr::mapvalues(x = confusion_dt$Run, from = c('Run_013', 'Run_012', 'Run_011', 'Run_010', 'Run_009', 'Run_008', 'Run_007', 'Run_006', 'Run_005', 'Run_004', 'Run_003', 'Run_002', 'Run_001'), to = c("1:0", "1:1", "1:3", "1:4", "1:7", "1:9", "1:15", "1:19", "1:31", "1:39", "1:63", "1:79", "1:127") )
     confusion_dt$Run_ID <- factor( confusion_dt$Run_ID, levels=c("1:0", "1:1", "1:3", "1:4", "1:7", "1:9", "1:15", "1:19", "1:31", "1:39", "1:63", "1:79", "1:127"))
   } 
@@ -143,7 +143,7 @@ getIdentificationsBarplot <- function( data, data_to_show=NULL, include_GT=NULL,
   names(fill_cols) <- c(grep("*_TP", levels(confusion_dt$variable), value=T), grep("*_FP", levels(confusion_dt$variable), value=T) )
   ## Order color pallete in same fashion as variable ordering
   fill_cols <- fill_cols[order(factor(names(fill_cols), levels=(var_order)))]
-  breaks <- 200
+  breaks <- 50
   p.out <- ggplot( ) + 
     geom_bar( data=dplyr::select(confusion_dt, c(Run_ID, variable, value)) %>% dplyr::filter(grepl("*TP", variable)), 
               aes(y=value, x=Run_ID, fill=variable), stat="identity", position="dodge2", col="black"
