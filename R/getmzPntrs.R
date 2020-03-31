@@ -1,6 +1,6 @@
 #' Get a list of mz Objects 
-#' @param input A shiny input variable that contains Working Directory Information
-#' @param global A list variable containing paths to chromatogram files
+#' @param dataPath data path that contains mzml folder of chromtogram files
+#' @param runs A list variable containing paths to chromatogram files
 #' @return (A list of mzRpwiz)
 #' 
 #' @importFrom tictoc tic toc

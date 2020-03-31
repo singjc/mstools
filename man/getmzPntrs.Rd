@@ -7,9 +7,9 @@
 getmzPntrs(dataPath, runs)
 }
 \arguments{
-\item{input}{A shiny input variable that contains Working Directory Information}
+\item{dataPath}{data path that contains mzml folder of chromtogram files}
 
-\item{global}{A list variable containing paths to chromatogram files}
+\item{runs}{A list variable containing paths to chromatogram files}
 }
 \value{
 (A list of mzRpwiz)
