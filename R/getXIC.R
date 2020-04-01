@@ -134,7 +134,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   if ( 'precursor' %in% transition_type ){
     MazamaCoreUtils::logger.info(  '--> Extracting Precursor Transition...\n')
     df_lib %>%
-      dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
+      dplyr::filter( if( is.null(chromatogram_data_points_list) ){ MODIFIED_SEQUENCE==mod  } else { UNMODIFIED_SEQUENCE==gsub("\\([a-zA-Z0-9:.]+\\)", '', mod) } ) %>%
+      # dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( TYPE=="" ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge )-> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for precursor transition in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
@@ -146,7 +147,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   if ( 'detecting' %in% transition_type){
     MazamaCoreUtils::logger.info(  '--> Extracting Detecting Transitions...\n')
     df_lib %>%
-      dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
+      dplyr::filter( if( is.null(chromatogram_data_points_list) ){ MODIFIED_SEQUENCE==mod  } else { UNMODIFIED_SEQUENCE==gsub("\\([a-zA-Z0-9:.]+\\)", '', mod) }  ) %>% ## TODO What is the best choice here? Modified or unmodified?
+      # dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
       dplyr::filter( DETECTING==1 ) -> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found detecting transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
@@ -158,7 +160,8 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
   if ( 'identifying' %in% transition_type ){
     MazamaCoreUtils::logger.info(  '--> Extracting Identifying Transitions...\n')
     df_lib %>%
-      dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
+      dplyr::filter( if( is.null(chromatogram_data_points_list) ){ MODIFIED_SEQUENCE==mod  } else { UNMODIFIED_SEQUENCE==gsub("\\([a-zA-Z0-9:.]+\\)", '', mod) } ) %>%
+      # dplyr::filter( MODIFIED_SEQUENCE==mod ) %>%
       dplyr::filter( PRECURSOR_CHARGE==Isoform_Target_Charge ) %>%
       dplyr::filter( DETECTING==0 ) -> df_lib_filtered
     if ( checkDataframe( df_lib_filtered, graphic_obj, msg='There was no data found for identifying transitions in library\n' ) ){ return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
