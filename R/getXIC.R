@@ -333,7 +333,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         # TODO: Change this to be more robust
         ## Make dumy columns for precursor_pep, ipf_pep etc.
         if ( !SCORE_IPF ){
-          cat("Non IPF scores is being used, pre-filling with NaN")
+          message("Non IPF scores is being used, pre-filling with NaN\n")
           osw_RT_pkgrps_filtered$precursor_pep <- NaN
           osw_RT_pkgrps_filtered$ipf_pep <- NaN
           osw_RT_pkgrps_filtered$m_score <- NaN
@@ -561,6 +561,17 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     transition_dt %>%
       base::unique() %>%
       dplyr::filter( transition_id %in% base::unique(df_plot$TRANSITION_ID) ) -> transition_dt_subset
+    
+    tictoc::tic()
+    # if ( !("run_name" %in% colnames(transition_dt)) ){
+    #   transition_dt[, run_name := tstrsplit(basename(filename), ".", fixed=TRUE, keep=1L)]  
+    # }
+    transition_dt %>%
+      dplyr::filter( FullPeptideName==mod & Charge==Isoform_Target_Charge & run_name==(strsplit(basename(in_sqMass), "\\."))[[1]][[1]] ) %>%
+      base::unique() %>%
+      dplyr::filter( transition_id %in% base::unique(df_plot$TRANSITION_ID) ) -> transition_dt_subset
+    tictoc::toc()
+    
     if ( dim(transition_dt_subset)[1]!=0 ) {
       ## Pre-Assign Vars in Table as NaN
       df_plot$RT.Map <- NaN

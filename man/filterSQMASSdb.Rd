@@ -4,7 +4,11 @@
 \alias{filterSQMASSdb}
 \title{Filter and sqMass db file}
 \usage{
-filterSQMASSdb(sqmass_file, unmodified_sequence_filter)
+filterSQMASSdb(
+  sqmass_file,
+  unmodified_sequence_filter,
+  recreate_indexes = FALSE
+)
 }
 \arguments{
 \item{sqmass_file}{A character vector of the absolute path and filename of the sqMass file. (Must be .osw format)}

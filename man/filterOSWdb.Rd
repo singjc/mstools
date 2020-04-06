@@ -4,12 +4,18 @@
 \alias{filterOSWdb}
 \title{Filter and OSW db file}
 \usage{
-filterOSWdb(osw_file, unmodified_sequence_filter)
+filterOSWdb(
+  osw_file,
+  unmodified_sequence_filter,
+  modified_sequence_filter = NULL
+)
 }
 \arguments{
 \item{osw_file}{A character vector of the absolute path and filename of the osw file. (Must be .osw format)}
 
 \item{unmodified_sequence_filter}{A character vector for extraction of specific peptide(s). I.e. c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')}
+
+\item{modified_sequence_filter}{A character vector for extraction of specific peptide(s) with modifications}
 }
 \value{
 A data.table containing spectral library information

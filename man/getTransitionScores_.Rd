@@ -9,7 +9,9 @@ getTransitionScores_(
   run_name,
   precursor_id = "",
   peptide_id = "",
-  mod_peptide_id = c("", "")
+  mod_peptide_id = c("", ""),
+  detecting = TRUE,
+  identifying = TRUE
 )
 }
 \arguments{

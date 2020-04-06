@@ -23,7 +23,7 @@
 #' @importFrom dbplyr sql 
 #' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 #' @importFrom tools file_ext
-filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter) {
+filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter, recreate_indexes=FALSE) {
   ## TODO add controls tatements for check tables being present
   DEBUG=FALSE
   if ( DEBUG ){
@@ -100,6 +100,43 @@ WHERE PRECURSOR.PEPTIDE_SEQUENCE NOT IN ('%s')", paste(unmodified_sequence_filte
         MazamaCoreUtils::logger.trace( "[mstools::filterSQMASSdb] Querying Database: %s", product_table_delete_stmt)
         DBI::dbExecute( db, product_table_delete_stmt )
       }
+      
+      if ( recreate_indexes ){
+        ##***********************************************
+        ##    Drop and Recreate Indexes
+        ##***********************************************
+        
+        drop_idxs <- "DROP INDEX 'main'.'chrom_run_idx';
+      DROP INDEX IF EXISTS 'main'.'data_chr_idx';
+      DROP INDEX IF EXISTS 'main'.'data_sp_idx';
+      DROP INDEX IF EXISTS 'main'.'precursor_chr_idx';
+      DROP INDEX IF EXISTS 'main'.'precursor_sp_idx';
+      DROP INDEX IF EXISTS 'main'.'product_chr_idx';
+      DROP INDEX IF EXISTS 'main'.'product_sp_idx';
+      DROP INDEX IF EXISTS 'main'.'run_extra_idx';
+      DROP INDEX IF EXISTS 'main'.'spec_mslevel_idx';
+      DROP INDEX IF EXISTS 'main'.'spec_rt_idx';
+      DROP INDEX IF EXISTS 'main'.'spec_run_idx';"
+        ## Execute drop index query
+        MazamaCoreUtils::logger.trace( '[mstools::filterSQMASSdb] Querying Database: %s', drop_idxs)
+        DBI::dbExecute( db, drop_idxs )
+        
+        create_idxs <- "CREATE INDEX IF NOT EXISTS 'chrom_run_idx' ON 'CHROMATOGRAM' ('RUN_ID');
+      CREATE INDEX IF NOT EXISTS 'data_chr_idx' ON 'DATA' ('CHROMATOGRAM_ID');
+      CREATE INDEX IF NOT EXISTS 'data_sp_idx' ON 'DATA' ('SPECTRUM_ID');
+      CREATE INDEX IF NOT EXISTS 'precursor_chr_idx' ON 'DATA' ('CHROMATOGRAM_ID');
+      CREATE INDEX IF NOT EXISTS 'precursor_sp_idx' ON 'DATA' ('SPECTRUM_ID');
+      CREATE INDEX IF NOT EXISTS 'product_chr_idx' ON 'DATA' ('CHROMATOGRAM_ID');
+      CREATE INDEX IF NOT EXISTS 'product_sp_idx' ON 'DATA' ('SPECTRUM_ID');
+      CREATE INDEX IF NOT EXISTS 'run_extra_idx' ON 'RUN_EXTRA' ('RUN_ID');
+      CREATE INDEX IF NOT EXISTS 'spec_mslevel_idx' ON 'SPECTRUM' ('MSLEVEL');
+      CREATE INDEX IF NOT EXISTS 'spec_rt_idx' ON 'SPECTRUM' ('RETENTION_TIME');
+      CREATE INDEX IF NOT EXISTS 'spec_run_idx' ON 'SPECTRUM' ('RUN_ID');"
+        ## Execute create index query
+        MazamaCoreUtils::logger.trace( '[mstools::filterSQMASSdb] Querying Database: %s', create_idxs)
+        DBI::dbExecute( db, create_idxs )
+      }
+      
       ##***********************************************
       ##    Clear unused space in db
       ##***********************************************

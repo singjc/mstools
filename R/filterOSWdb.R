@@ -13,6 +13,7 @@
 #' 
 #' @param osw_file A character vector of the absolute path and filename of the osw file. (Must be .osw format)
 #' @param unmodified_sequence_filter A character vector for extraction of specific peptide(s). I.e. c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')
+#' @param modified_sequence_filter A character vector for extraction of specific peptide(s) with modifications
 #' @return A data.table containing spectral library information
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
@@ -23,7 +24,7 @@
 #' @importFrom dbplyr sql 
 #' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 #' @importFrom tools file_ext
-filterOSWdb <- function( osw_file, unmodified_sequence_filter) {
+filterOSWdb <- function( osw_file, unmodified_sequence_filter, modified_sequence_filter=NULL) {
   ## TODO add controls tatements for check tables being present
   DEBUG=FALSE
   if ( DEBUG ){
@@ -55,7 +56,11 @@ filterOSWdb <- function( osw_file, unmodified_sequence_filter) {
       ##    Peptide Filter Selection
       ##************************************************
       ## query statement to get a table of only desired unmodified sequences
+      if ( is.null(modified_sequence_filter) ) {
       peptide_filter_stmt <- sprintf( "SELECT * FROM PEPTIDE WHERE PEPTIDE.UNMODIFIED_SEQUENCE in ('%s')", paste(unmodified_sequence_filter, collapse="','") )
+      } else {
+        peptide_filter_stmt <- sprintf( "SELECT * FROM PEPTIDE WHERE PEPTIDE.MODIFIED_SEQUENCE in ('%s')", paste(modified_sequence_filter, collapse="','") )
+      }
       ## Send query to database
       MazamaCoreUtils::logger.trace( "[mstools::filterOSWdb] Querying Database: %s", peptide_filter_stmt)
       peptide_table <- dplyr::collect( dplyr::tbl( db, dbplyr::sql( peptide_filter_stmt )) )

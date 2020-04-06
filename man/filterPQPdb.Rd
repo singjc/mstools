@@ -4,10 +4,16 @@
 \alias{filterPQPdb}
 \title{Filter and PQP db file}
 \usage{
-filterPQPdb(pqp_file, unmodified_sequence_filter)
+filterPQPdb(
+  pqp_file,
+  unmodified_sequence_filte,
+  modified_sequence_filter = NULL
+)
 }
 \arguments{
 \item{pqp_file}{A character vector of the absolute path and filename of the sqMass file. (Must be .osw format)}
+
+\item{modified_sequence_filter}{A character vector for extraction of specific peptide(s) with modifications}
 
 \item{unmodified_sequence_filter}{A character vector for extraction of specific peptide(s). I.e. c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')}
 }

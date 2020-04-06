@@ -114,16 +114,34 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, id_type='transition_
       }
       stmt <- substr(stmt,1,nchar(stmt)-1)
       stmt <- paste(stmt, ')', sep='')
-      MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] Querying Database: %s", stmt)
+      MazamaCoreUtils::logger.trace( sprintf("[mstools::getChromatogramDataPoints_] Querying Database: %s", stmt) )
       data <- dplyr::collect( dplyr::tbl(sqmass_db, dbplyr::sql(stmt)) )
       
       data <- merge(data, chrom_index_df, by="CHROMATOGRAM_ID")
       
-    } else if ( !is.null(mzPntrs) & id_type=="chromatogramIndex" ){
+    } else if ( !is.null(mzPntrs)  ){ ## Had & id_type=='chromatogramIndex here before, but I think this is obsolete now.
       MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] ** sqMass: Extracting Chromatogram data from cached pointers data.table **")
-      data <- mzPntrs
-      data %>%
-        dplyr::filter( CHROMATOGRAM_ID %in% frag_ids ) -> data
+      if ( class(mzPntrs)=="list" ){
+        if ( isListObj(mzPntrs, "mz") ){
+          data <- mzPntrs$mz
+        } else {
+          MazamaCoreUtils::logger.error( sprintf("[mstools::getChromatogramDataPoints_] The passed cached mzPntrs object did not contain the raw chromatogram data in the list object.\nThe contents of the passed object contains %s.\n", names(mzPntrs)) )
+        }
+      } else {
+        if ( dim(mzPntrs)[1] > 0 ){
+        data <- mzPntrs
+        } else {
+          MazamaCoreUtils::logger.error( sprintf("[mstools::getChromatogramDataPoints_] The passed cached mzPntrs did not contain any data. Dimension of rows passed data.frame %s.\n", dim(mzPntrs)[1]) )
+        }
+      }
+      if ( id_type=='chromatogramIndex' ){
+        data %>%
+          dplyr::filter( CHROMATOGRAM_ID %in% unlist(frag_ids) ) -> data
+      } else {
+        data %>%
+          dplyr::filter( FRAGMENT_ID %in% unlist(frag_ids) ) -> data
+      }
+      
     }
     
     chrom <- list()
@@ -155,12 +173,12 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, id_type='transition_
       } else if ( data_row$DATA_TYPE == 2){
         chrom[[ data_row$FRAGMENT_ID ]][[name_time]] = result
       } else {
-        MazamaCoreUtils::logger.error("[mstools::getChromatogramDataPoints_] Only expected RT or Intensity data for chromatogram. Expected DATA_TYPE to be 1 or 2, instead got %s", data_row$DATA_TYPE )
+        MazamaCoreUtils::logger.error( sprintf("[mstools::getChromatogramDataPoints_] Only expected RT or Intensity data for chromatogram. Expected DATA_TYPE to be 1 or 2, instead got %s", data_row$DATA_TYPE) )
       }
     }
     if ( is.null(mzPntrs) ) {
       # Disconnect from database
-      MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] Disconnecting From Database: %s", filename)
+      MazamaCoreUtils::logger.trace( sprintf("[mstools::getChromatogramDataPoints_] Disconnecting From Database: %s", filename) )
       DBI::dbDisconnect(sqmass_db)
     }
     return(chrom)
@@ -193,7 +211,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, id_type='transition_
     } else if ( length(chromatogramIndices)>1 ) {
       rawChrom <- mzR::chromatograms(mz_object, chromatogramIndices)
     } else {
-      MazamaCoreUtils::logger.error( crayon::red$bold$underline('[mstools::getChromatogramDataPoints_] There was no Chromatogramphic data for the following fragment(s): ', base::paste(frag_ids[[1]], collapse = ', ')), sep='')
+      MazamaCoreUtils::logger.error( paste(crayon::red$bold$underline('[mstools::getChromatogramDataPoints_] There was no Chromatogramphic data for the following fragment(s): ', base::paste(frag_ids[[1]], collapse = ', ')), sep='') )
     }
     chrom <- list(); rawChrom_idx <- 1
     for ( fragment_id in frag_ids[[1]] ){
@@ -204,6 +222,6 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, id_type='transition_
     rm(mz_object)
     return(chrom)
   } else {
-    MazamaCoreUtils::logger.error( crayon::red$bold$underline(fileType, '[mstools::getChromatogramDataPoints_] FileType is not supported!!\n'), sep='')
+    MazamaCoreUtils::logger.error( paste(crayon::red$bold$underline(fileType, '[mstools::getChromatogramDataPoints_] FileType is not supported!!\n'), sep='') )
   }
 } ## End Function
