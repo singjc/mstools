@@ -43,6 +43,7 @@
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
 #' @importFrom ggplot2 ggplot geom_line geom_vline geom_rect aes guides guide_legend ggtitle labs theme element_text scale_alpha_identity scale_fill_manual theme_bw
+#' @importFrom grid unit
 #' @importFrom gridExtra ttheme_default tableGrob arrangeGrob 
 #' @importFrom ggpubr as_ggplot 
 #' @importFrom data.table set
@@ -250,7 +251,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         dplyr::filter( peak_group_rank==min(peak_group_rank) ) -> osw_df_filtered
       
     } 
-    
     ## Check if openswath dataframe is empty after filtering
     if ( checkDataframe( osw_df, graphic_obj, msg='There was no data found in OpenSwath Dataframe after filtering for peptide and top peak\n' ) ){ 
       ## If osw_df is empty, return graphic object and max_Int value.
@@ -328,12 +328,13 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         dplyr::filter( RT %in% RT_pkgrps ) %>%
         dplyr::filter( RT != osw_df_filtered$RT ) %>%
         dplyr::select( RT, leftWidth, rightWidth, peak_group_rank, ms2_m_score, dplyr::contains("ipf_pep"), dplyr::contains("m_score"), dplyr::contains("precursor_pep") ) -> osw_RT_pkgrps_filtered
+
       if ( dim(osw_RT_pkgrps_filtered)[1]!=0 ){
         
         # TODO: Change this to be more robust
         ## Make dumy columns for precursor_pep, ipf_pep etc.
         if ( !SCORE_IPF ){
-          message("Non IPF scores is being used, pre-filling with NaN\n")
+          cat("Non IPF scores is being used, pre-filling with NaN")
           osw_RT_pkgrps_filtered$precursor_pep <- NaN
           osw_RT_pkgrps_filtered$ipf_pep <- NaN
           osw_RT_pkgrps_filtered$m_score <- NaN
@@ -443,7 +444,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         theme(plot.title = element_text(hjust = 0.5), 
               plot.subtitle = element_text(hjust = 0.5, size = 10),
               legend.text = element_text(size = 2),
-              legend.key.size = unit(0.5, "cm")) +
+              legend.key.size = grid::unit(0.5, "cm")) +
         # theme( panel.background = element_rect( fill='lightblue', color='lightblue', size=0.5, linetype='solid'),
         #       panel.border = element_rect( fill=NA, color='black', size=0.5, linetype='solid'),
         #       panel.grid.major = element_line( color='white', size=0.5, linetype='solid'),
@@ -470,7 +471,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     }
     
     if ( exists("annotationGrob") & show_peak_info_tbl ){                                                                                                                    
-      graphic_obj <- ggpubr::as_ggplot( gridExtra::arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = grid::unit.c(unit(1, "null"), th )) )                    
+      graphic_obj <- ggpubr::as_ggplot( gridExtra::arrangeGrob( graphic_obj, annotationGrob, nrow = 2, heights = grid::unit.c(grid::unit(1, "null"), th )) )                    
     }    
     MazamaCoreUtils::logger.info(sprintf('[mstooks::getXIC] Returning Final XIC plot object for:\n%s', mod))
     return( list(graphic_obj=graphic_obj, max_Int=max_Int) )
@@ -527,6 +528,12 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
     df_plot <- dplyr::bind_rows(parallel::mclapply(chromatogram_data_points_list, data.frame), .id='Transition')
     
   }
+  
+  ##****************************
+  ##  Chromatogram Data Check
+  ##****************************
+  ## Do a check to see if there was any data extracted, otherwise return null
+  if ( sum(is.na(df_plot$RT))==length(df_plot$RT) & sum(is.na(df_plot$Int))==length(df_plot$Int) ) { warning("There was no data to add to plot..."); return( list(graphic_obj=graphic_obj, max_Int=max_Int) ) }
   
   ##****************************
   ##  Filter RT
@@ -767,7 +774,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           graphic_obj <- graphic_obj + 
             geom_line(data=tmp_plot, aes(RT, Int, col=Transition), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) #+ 
           # theme(legend.text = element_text(size = 2),
-          #       legend.key.size = unit(0.5, "cm"))
+          #       legend.key.size = grid::unit(0.5, "cm"))
           #       
           
           # graphic_obj + geom_line(data=tmp_plot, aes(RT, Int, col=Transition), linetype='solid', alpha=0.5, size=1.5, show.legend = show_legend) + facet_zoom(ylim = c(0, 5000))
@@ -815,7 +822,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           graphic_obj <- graphic_obj + 
             geom_line(data=tmp_plot, aes(RT, Int, col=Transition), linetype='F1', alpha=0.5, show.legend = show_legend) #+ 
           # theme(legend.text = element_text(size = 2),
-          #       legend.key.size = unit(0.5, "cm"))
+          #       legend.key.size = grid::unit(0.5, "cm"))
         }
       }
       ##### Transitions against
@@ -850,7 +857,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
           graphic_obj <- graphic_obj + 
             geom_line(data=tmp_plot, aes(RT, Int, col=Transition), linetype='dashed', show.legend = show_legend) #+ 
           # theme(legend.text = element_text(size = 2),
-          #       legend.key.size = unit(0.5, "cm"))
+          #       legend.key.size = grid::unit(0.5, "cm"))
         }
       }
     } else {
@@ -934,8 +941,6 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
         tmp_plot %>%
           dplyr::filter( TRANSITION_ID %in% as.matrix(Ordered_top_Int) ) -> tmp_plot
         
-        print(tmp_plot)
-        
         if ( dim(tmp_plot)[1] > 0){
           
           if( !is.null(transition_dt) ) {
@@ -998,7 +1003,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
             geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='F1', show.legend = show_legend) +
             guides(col=guide_legend(title="Identifying"))  #+ 
           # theme(legend.text = element_text(size = 2),
-          #       legend.key.size = unit(0.5, "cm"))
+          #       legend.key.size = grid::unit(0.5, "cm"))
         }
       }
       
@@ -1034,7 +1039,7 @@ getXIC <- function( graphic_obj=ggplot2::ggplot(),
             geom_line(data=tmp_plot, aes(RT, Int, col=Transition, text=paste('Transition: ', Transition, sep='')), linetype='dashed', show.legend = show_legend) +
             guides(col=guide_legend(title="Identifying"))  #+ 
           # theme(legend.text = element_text(size = 2),
-          #       legend.key.size = unit(0.5, "cm"))
+          #       legend.key.size = grid::unit(0.5, "cm"))
         }
       }
     }

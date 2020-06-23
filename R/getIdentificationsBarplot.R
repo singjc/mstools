@@ -143,7 +143,7 @@ getIdentificationsBarplot <- function( data, data_to_show=NULL, include_GT=NULL,
   names(fill_cols) <- c(grep("*_TP", levels(confusion_dt$variable), value=T), grep("*_FP", levels(confusion_dt$variable), value=T) )
   ## Order color pallete in same fashion as variable ordering
   fill_cols <- fill_cols[order(factor(names(fill_cols), levels=(var_order)))]
-  breaks <- 50
+  breaks <- 200
   p.out <- ggplot( ) + 
     geom_bar( data=dplyr::select(confusion_dt, c(Run_ID, variable, value)) %>% dplyr::filter(grepl("*TP", variable)), 
               aes(y=value, x=Run_ID, fill=variable), stat="identity", position="dodge2", col="black"

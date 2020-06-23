@@ -64,7 +64,9 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, id_type='transition_
     ##*********************************************
     
     if ( !reticulate::py_available()  ){
-      find_python()
+      if ( Sys.getenv("RETICULATE_PYTHON")=="" & reticulate::py_available()==FALSE ){
+        find_python()
+      }
       install_python_dependencies()
       MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] ** Loading Python Modules **")
       .onload()
@@ -190,7 +192,7 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, id_type='transition_
       filename <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/mzML_Chroms_Decomp/chludwig_K150309_013_SW_0_osw_chrom.mzML"
     }
     # Read in an mzML chromatogram --------------------------------------------
-    MazamaCoreUtils::logger.info('[mstools::getChromatogramDataPoints_] Reading in chromatogram of ', crayon::blue$bold$underline('mzML type.\n', sep=''))
+    MazamaCoreUtils::logger.info(paste('[mstools::getChromatogramDataPoints_] Reading in chromatogram of ', crayon::blue$bold$underline('mzML type.\n'), sep=''))
     if ( is.null(mzPntrs) ){
       MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** mzR: Loading mzML chromatogram into mz_object **")
       # Create an mzR object that stores all header information, and use ProteoWizard api to access data from MzML file
@@ -206,12 +208,19 @@ getChromatogramDataPoints_ <- function( filename, frag_ids, id_type='transition_
     chromatogramIndices <- chromHead$chromatogramIndex[ match(frag_ids[[1]], chromHead$chromatogramId)  ]
     MazamaCoreUtils::logger.info( "[mstools::getChromatogramDataPoints_] ** mzR: Extracting chromatographic data **")
     # Check how many chromatogramIndices are present to extract
-    if ( length(chromatogramIndices)==1 ){
+    if ( length(chromatogramIndices)==1 & !is.na(chromatogramIndices) ){
       rawChrom <- list(mzR::chromatograms(mz_object, chromatogramIndices))
     } else if ( length(chromatogramIndices)>1 ) {
       rawChrom <- mzR::chromatograms(mz_object, chromatogramIndices)
     } else {
       MazamaCoreUtils::logger.error( paste(crayon::red$bold$underline('[mstools::getChromatogramDataPoints_] There was no Chromatogramphic data for the following fragment(s): ', base::paste(frag_ids[[1]], collapse = ', ')), sep='') )
+      chrom <- list(); rawChrom_idx <- 1
+      for ( fragment_id in frag_ids[[1]] ){
+        chrom[[ fragment_id ]] <- list(RT=NaN,
+                                       Int=NaN)
+        rawChrom_idx <- rawChrom_idx + 1
+      }
+      return( chrom )
     }
     chrom <- list(); rawChrom_idx <- 1
     for ( fragment_id in frag_ids[[1]] ){

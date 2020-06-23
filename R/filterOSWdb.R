@@ -14,22 +14,28 @@
 #' @param osw_file A character vector of the absolute path and filename of the osw file. (Must be .osw format)
 #' @param unmodified_sequence_filter A character vector for extraction of specific peptide(s). I.e. c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')
 #' @param modified_sequence_filter A character vector for extraction of specific peptide(s) with modifications
+#' @param random_seed (numeric) Set the seed for sampling
+#' @param ratio_keep (float) Set the fraction of sequences to keep
 #' @return A data.table containing spectral library information
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
-#' @importFrom DBI dbConnect dbDisconnect dbExecute dbExistsTable
+#' @importFrom DBI dbConnect dbDisconnect dbExecute dbExistsTable dbSendQuery dbBind
 #' @importFrom RSQLite SQLite 
 #' @importFrom dplyr collect tbl
 #' @importFrom dbplyr sql 
 #' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 #' @importFrom tools file_ext
-filterOSWdb <- function( osw_file, unmodified_sequence_filter, modified_sequence_filter=NULL) {
+filterOSWdb <- function( osw_file, unmodified_sequence_filter=NULL, modified_sequence_filter=NULL, random_seed=NULL, ratio_keep=NULL) {
   ## TODO add controls tatements for check tables being present
   DEBUG=FALSE
   if ( DEBUG ){
     osw_file <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR/inst/extdata/Synthetic_Dilution_Phosphoproteomics/osw/merged.osw"
     unmodified_sequence_filter <- c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')
+    osw_file <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/Synth_PhosoPep/Justin_Synth_PhosPep/results/George_lib_repeat2/pyprophet/subsample_test2/test_13_2.osw"
+    osw_file <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR_Test_Data/Subsample_Test/test_13.osw"
+    random_seed <- 1
+    ratio_keep <- 0.5
   }
   
   ## Check if logging has been initialized
@@ -52,14 +58,63 @@ filterOSWdb <- function( osw_file, unmodified_sequence_filter, modified_sequence
       MazamaCoreUtils::logger.trace( "[mstools::filterOSWdb] Connecting to Database: %s", osw_file)
       db <- DBI::dbConnect( RSQLite::SQLite(), osw_file )
       
+      
+      
       ##************************************************
       ##    Peptide Filter Selection
       ##************************************************
       ## query statement to get a table of only desired unmodified sequences
-      if ( is.null(modified_sequence_filter) ) {
-      peptide_filter_stmt <- sprintf( "SELECT * FROM PEPTIDE WHERE PEPTIDE.UNMODIFIED_SEQUENCE in ('%s')", paste(unmodified_sequence_filter, collapse="','") )
-      } else {
+      if ( !is.null(unmodified_sequence_filter) & is.null(modified_sequence_filter) ) {
+        MazamaCoreUtils::logger.trace( "[mstools::filterOSWdb] Using Unmodified Sequences Input")
+        peptide_filter_stmt <- sprintf( "SELECT * FROM PEPTIDE WHERE PEPTIDE.UNMODIFIED_SEQUENCE in ('%s')", paste(unmodified_sequence_filter, collapse="','") )
+      } else if ( is.null(unmodified_sequence_filter) & !is.null(modified_sequence_filter) ) {
+        MazamaCoreUtils::logger.trace( "[mstools::filterOSWdb] Using Modified Sequences Input")
         peptide_filter_stmt <- sprintf( "SELECT * FROM PEPTIDE WHERE PEPTIDE.MODIFIED_SEQUENCE in ('%s')", paste(modified_sequence_filter, collapse="','") )
+      } else if (  is.null(unmodified_sequence_filter) & is.null(modified_sequence_filter) & !is.null(random_seed) & !is.null(ratio_keep) ){
+        MazamaCoreUtils::logger.trace( "[mstools::filterOSWdb] Using random seed (%s) selection for fraction %s", random_seed, ratio_keep)
+        tmp_peptide_table_query <- "SELECT 
+PEPTIDE.ID AS PEPTIDE_ID,
+PEPTIDE.UNMODIFIED_SEQUENCE AS UNMODIFIED_SEQUENCE,
+PEPTIDE.MODIFIED_SEQUENCE AS MODIFIED_SEQUENCE,
+PEPTIDE.DECOY AS PEPTIDE_DECOY,
+PRECURSOR.ID AS PRECURSOR_ID,
+PRECURSOR.PRECURSOR_MZ AS PRECURSOR_MZ,
+PRECURSOR.CHARGE AS PRECURSOR_CHARGE,
+PRECURSOR.LIBRARY_RT as PRECURSOR_LIBRARY_RT,
+PRECURSOR.DECOY AS PRECURSOR_DECOY
+FROM PEPTIDE
+INNER JOIN PRECURSOR_PEPTIDE_MAPPING ON PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID = PEPTIDE.ID
+INNER JOIN PRECURSOR ON PRECURSOR.ID = PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID"
+        tmp_peptide_table <- dplyr::collect( dplyr::tbl( db, dbplyr::sql( tmp_peptide_table_query )) )
+        
+        tmp_peptide_table %>%
+          dplyr::select( PEPTIDE_ID, UNMODIFIED_SEQUENCE, MODIFIED_SEQUENCE, PRECURSOR_DECOY ) %>%
+          unique() -> write_peptide_table
+        colnames(write_peptide_table)[c(1,4)] <- c("ID", "DECOY")
+        
+        update <- DBI::dbSendQuery(db, 'update PEPTIDE set "ID"=?, "UNMODIFIED_SEQUENCE"=?, "MODIFIED_SEQUENCE"=?, "DECOY"=?  WHERE _rowid_=?')
+        
+        DBI::dbWriteTable(db, "PEPTIDE", write_peptide_table, overwrite=TRUE)  # send the updated data
+        
+        ## Set a Random Seed
+        set.seed( random_seed )
+        ## Subsample Targets
+        tmp_peptide_table %>%
+          dplyr::filter( PRECURSOR_DECOY==0 ) %>%
+          dplyr::sample_frac( size = ratio_keep ) -> tmp_peptide_table_subsampled
+        
+        ## Get Decoy Counter Parts
+        tmp_peptide_table %>%
+          dplyr::filter( PRECURSOR_DECOY==1 ) %>%
+          dplyr::filter( PRECURSOR_MZ %in% tmp_peptide_table_subsampled$PRECURSOR_MZ & PRECURSOR_CHARGE %in% tmp_peptide_table_subsampled$PRECURSOR_CHARGE & PRECURSOR_LIBRARY_RT %in% tmp_peptide_table_subsampled$PRECURSOR_LIBRARY_RT ) -> tmp_peptide_table_subsampled_decoys
+        
+        tmp_peptide_table_subsampled <- data.table::rbindlist(list(tmp_peptide_table_subsampled, tmp_peptide_table_subsampled_decoys))
+        
+        peptide_filter_stmt <- sprintf( "SELECT * FROM PEPTIDE WHERE PEPTIDE.MODIFIED_SEQUENCE in ('%s')", paste(tmp_peptide_table_subsampled$MODIFIED_SEQUENCE, collapse="','") )
+        ## Disconnect from database
+        DBI::dbDisconnect( db )
+        ## Reconnect to database to reflect changes
+        db <- DBI::dbConnect( RSQLite::SQLite(), osw_file )
       }
       ## Send query to database
       MazamaCoreUtils::logger.trace( "[mstools::filterOSWdb] Querying Database: %s", peptide_filter_stmt)

@@ -456,6 +456,8 @@ void encodeLinear(
 	result.resize(encodedLength);
 }
 
+///' @export
+/// [[Rcpp::export]]
 void decodeLinear(
 		const std::vector<unsigned char> &data,
 		std::vector<double> &result

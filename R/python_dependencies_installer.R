@@ -12,10 +12,10 @@ find_python <- function(){
   ## Check for available versions of python
   pythons_available <- reticulate::py_discover_config()
   ## Just use first isntance of python. @ TODO, might need to find a better way to do this
-  use_first_python <- pythons_available$python_versions[1]
+  use_first_python <- pythons_available$python_versions[3]
   MazamaCoreUtils::logger.warn( "Python Found: %s", use_first_python )
   Sys.setenv( RETICULATE_PYTHON=use_first_python )
-  reticulate::use_python( use_first_python )
+  reticulate::use_python( use_first_python, required = TRUE )
   
 }
 
@@ -32,7 +32,7 @@ install_python_dependencies <- function(method = "auto", conda = "auto") {
   ## Check for available versions of python
   pythons_available <- reticulate::py_discover_config()
   ## Just use first isntance of python. @ TODO, might need to find a better way to do this
-  use_first_python <- pythons_available$python_versions[1]
+  use_first_python <- pythons_available$python_versions[3]
   
   # MazamaCoreUtils::logger.info("Installing modules for python: %s", Sys.getenv("RETICULATE_PYTHON"))
   

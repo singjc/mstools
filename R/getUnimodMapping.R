@@ -64,7 +64,7 @@ generateUniModMapping_ <- function( unimod_xml=NULL ){
 NULL
 
 #' @export
-unimodTocodename <- function( mod_seq, out='sequence'){
+unimodTocodename <- function( mod_seq, out='sequence', modification_labels=NULL ){
   DEBUG = F
   if ( DEBUG ){
     mod_seq <- "EGHAQNPMEPSVPQLSLMDVK"
@@ -73,7 +73,9 @@ unimodTocodename <- function( mod_seq, out='sequence'){
     mod_seq <- "ADEIC(UniMod:4)IAGS(UniMod:21)PLTPR"
   }
   ## Get Modifications
-  modification_labels <- base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
+  if ( is.null(modification_labels) ){
+    modification_labels <- unique(unlist(base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))))
+  }
   ## Check if there were any modifications
   if ( length(modification_labels) >= 1 ){
   ## get UniMod IDs
@@ -114,7 +116,7 @@ unimodTocodename <- function( mod_seq, out='sequence'){
 NULL
 
 #' @export
-codenameTounimod <- function( mod_seq, out='sequence'){
+codenameTounimod <- function( mod_seq, out='sequence', modification_labels=NULL ){
   DEBUG = F
   if ( DEBUG ){
     mod_seq <- "EGHAQNPMEPSVPQLSLMDVK"
@@ -124,7 +126,10 @@ codenameTounimod <- function( mod_seq, out='sequence'){
   }
   ## Get Modifications
   ## Need to make this more robust, somehow
-  modification_labels <- base::regmatches(mod_seq, gregexpr("\\(\\w+\\)|\\(Label:13C\\(\\d+\\)15N\\(\\d+\\)\\)", mod_seq))[[1]]
+  ## Get Modifications
+  if ( is.null(modification_labels) ){
+    modification_labels <- unique(unlist(base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))))
+  }
   ## Check if there were any modifications
   if ( length(modification_labels) >= 1 ){
     ## convert query UniMod IDs to modification code name
@@ -169,7 +174,7 @@ codenameTounimod <- function( mod_seq, out='sequence'){
 NULL
 
 #' @export
-unimodTouniisoid <- function( mod_seq, out="sequence", mod_exclusion=NULL, mod_grouping=NULL ){
+unimodTouniisoid <- function( mod_seq, out="sequence", mod_exclusion=NULL, mod_grouping=NULL, modification_labels=NULL ){
   DEBUG = F
   if ( DEBUG ){
     mod_seq <- "EGHAQNPMEPSVPQLSLMDVK"
@@ -180,7 +185,9 @@ unimodTouniisoid <- function( mod_seq, out="sequence", mod_exclusion=NULL, mod_g
     mod_grouping <- data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )
   }
   ## Get Modifications
-  modification_labels <- base::regmatches(mod_seq, gregexpr("\\(.*?\\)", mod_seq))[[1]]
+  if ( is.null(modification_labels) ){
+    modification_labels <- unique(unlist(base::regmatches(mod_seq, gregexpr("\\.?\\(.*?\\)", mod_seq))))
+  }
   ## Get unimod mapping table
   unimod_mapping <-  mstools::unimod_mapping
   ## Check if there were any modifications
@@ -200,7 +207,7 @@ unimodTouniisoid <- function( mod_seq, out="sequence", mod_exclusion=NULL, mod_g
       unimod_mapping$rand_char_id[ which( unimod_mapping$record_id %in% mod_grouping$record_id ) ] <- mod_grouping$rand_char_id
     }
     ## get UniMod IDs
-    query_unimod_ids <- gsub( "\\(UniMod:(\\d+)\\)", "\\1", (modification_labels) )
+    query_unimod_ids <- gsub( "\\.?\\(UniMod:(\\d+)\\)", "\\1", (modification_labels) )
     ## convert query UniMod IDs to modification code name
     out_code_names <- plyr::mapvalues(query_unimod_ids, from = unimod_mapping$record_id, to = unimod_mapping$rand_char_id, warn_missing = FALSE)
     names(out_code_names) <- gsub('\\(|\\)','',modification_labels)
@@ -210,14 +217,14 @@ unimodTouniisoid <- function( mod_seq, out="sequence", mod_exclusion=NULL, mod_g
     ## Remove brackets
     converted_mod_seq <- gsub('\\(|\\)','',converted_mod_seq)
     ## Sort based on character to create a unique string
-    converted_mod_seq <- paste(stringr::str_sort(base::strsplit(converted_mod_seq,"")[[1]]),collapse="")
+    converted_mod_seq <- lapply(base::strsplit(converted_mod_seq,""), function(split_seq){ paste( stringr::str_sort(split_seq, ), collapse="") }) 
   } else {
     out_code_names <- NULL
     converted_mod_seq <- mod_seq
     converted_mod_seq <- paste(stringr::str_sort(base::strsplit(converted_mod_seq,"")[[1]]),collapse="")
   }
   if ( out=='sequence' ){
-    return( converted_mod_seq )
+    return( as.character( converted_mod_seq ) )
   } else {
     return( out_code_names )
   }

@@ -16,6 +16,8 @@
 #' @param sqMass_files A list of character vectors. Full paths to chromatogram file(s).
 #' @param in_lib A character vector. Full path to a pqp assay library.
 #' @param in_osw A character vector. Full path to an osw results file.
+#' @param .osw_df (data.table) A data.table object that contains the osw results peak group scores data
+#' @param .lib_df (data.table) A data.table object that contains lib information
 #' @param SCORE_IPF Do you want to extract IPF Score if present? (Default: FALSE. will use MS2 m-scores)
 #' @param plotPrecursor A logical value. True will plot precursor chromatogram
 #' @param plotIntersectingDetecting A logcail value. True will plot intersecting detecting transitions if comparing two peptidoforms.
@@ -55,7 +57,11 @@
 #' @importFrom MazamaCoreUtils logger.isInitialized logger.info logger.error logger.warn logger.trace
 XICMasterPlotFcn_ <- function( dup_peps, 
                                uni_mod=NULL, 
-                               sqMass_files,  in_lib, in_osw, 
+                               sqMass_files,  
+                               in_lib, 
+                               in_osw, 
+                               .osw_df=NULL,
+                               .lib_df=NULL,
                                SCORE_IPF=FALSE,
                                plotPrecursor=T,
                                plotIntersectingDetecting=T,
@@ -119,18 +125,32 @@ XICMasterPlotFcn_ <- function( dup_peps,
           setTimeLimit(cpu = Inf, elapsed = Inf, transient = FALSE)
         })
         
-        
         MazamaCoreUtils::logger.info(paste('   ~ Getting peptide library data.. for ', pep, '\n', sep=''))
+        if ( is.null(.lib_df) ){
         # Retrieve library data for specific peptide
-        df_lib <- getPepLibData_( in_lib, peptide_id=pep )
+          df_lib <- getPepLibData_( in_lib, peptide_id=pep )
+        } else {
+          df_lib <- .lib_df
+          df_lib %>%
+            dplyr::filter( UNMODIFIED_SEQUENCE %in% dup_peps) -> df_lib # instead of UNMODIFIED_SEQUENCE this was Sequence before...
+          MazamaCoreUtils::logger.info( "A data.frame object containing library data was supplied" )
+        }
         
         MazamaCoreUtils::logger.info(paste('   ~ Getting OpenSwath data.. for ', pep, '\n', sep=''))
         tryCatch( expr = {
           # Load OSW Merged df
+          if ( is.null(.osw_df) ){
           osw_df <- mstools::getOSWData_( in_osw, run_name, precursor_id='', peptide_unmodified = pep, mod_residue_position='', peak_group_rank_filter=T, pep_list='', ipf_filter='', ms2_score=T, ipf_score=F )
           if ( dim(osw_df)[1]==0 ){ MazamaCoreUtils::logger.error(paste(crayon::red(pep, ' was not found as a peak_rank_group=1 in osw file!!!, skipping...\n'),sep='')); return(list()) }
+          } else {
+            osw_df <- .osw_df
+            osw_df %>%
+              dplyr::filter( Sequence %in% dup_peps) %>%
+              dplyr::filter( grepl( paste0(".*", run_name, ".*"), filename) ) -> osw_df
+            MazamaCoreUtils::logger.info( "A data.frame object containing peak group scoring data was supplied" )
+          }
         }, error = function(e){
-          MazamaCoreUtils::logger.error(sprintf("[mstools::XICMasterPlotFcn_] There was the following error that occured during (R#127): %s", e$message))
+          MazamaCoreUtils::logger.error(sprintf("[mstools::XICMasterPlotFcn_] There was the following error that occured while extracting OpenSWATH data: %s", e$message))
         })
         
         
@@ -167,7 +187,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
             }
             
           } else {
-            n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
+            n_mod_sites <- str_count( uni_mod, '\\(UniMod:21\\)|\\(Phospho\\)' ) + (stringr::str_count( uni_mod, '\\(UniMod:35\\)|\\(Oxidation\\)' )*3) + (stringr::str_count( uni_mod, '\\(UniMod:4\\)|\\(Carbamidomethyl\\)' )*6)
             n_mod_sites_common <- mstools::Mode(n_mod_sites)
             if ( length(uni_mod)==1 ){ mod=uni_mod; max_Int=0; return( drawNakedPeptide_(df_lib=df_lib, mod=mod, pep=pep, in_sqMass=in_sqMass, plotPrecursor=plotPrecursor, plotIntersectingDetecting=plotIntersectingDetecting,  plotIdentifying=plotIdentifying, plotUniqueDetecting=plotUniqueDetecting, plotIdentifying.Unique=plotIdentifying.Unique, plotIdentifying.Shared=plotIdentifying.Shared, plotIdentifying.Against=plotIdentifying.Against, intersecting_mz=NULL, uni_mod_list=NULL, max_Int=max_Int, in_osw=in_osw, smooth_chromatogram=smooth_chromatogram, doFacetZoom=doFacetZoom, top_trans_mod_list=NULL, show_all_pkgrprnk=show_all_pkgrprnk, FacetFcnCall=FacetFcnCall, show_legend = show_legend ) ) } 
             if ( length(uni_mod)==1 ){ n_sample=1 } else { n_sample=2 } # @TODO: Need to figure something out for this and the line above...
@@ -186,7 +206,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
           uni_mod <- uni_isoform_group_list[[uni_isoform_group_list_idx]]
           uni_mod <- stringr::str_replace_all(uni_mod, "\t|\n", "")
           osw_df %>%
-            dplyr::filter( FullPeptideName %in% uni_mod) %>%
+            dplyr::filter( FullPeptideName %in% uni_mod | FullPeptideName %in% unimodTocodename(uni_mod) ) %>%
             dplyr::select( Charge ) %>%
             as.matrix() %>%
             mstools::Mode() -> Isoform_Target_Charge
@@ -212,9 +232,14 @@ XICMasterPlotFcn_ <- function( dup_peps,
           
           # Display other peak group rank features
           if ( show_all_pkgrprnk==T ){
-            osw_df_all <- getOSWData_( in_osw, run_name, precursor_id='', peptide_unmodified = pep, mod_residue_position='', peak_group_rank_filter=F, pep_list='', ipf_filter='', ms2_score=T, ipf_score=F )
-            
+            if ( is.null(.osw_df) ){
+              osw_df_all <- getOSWData_( in_osw, run_name, precursor_id='', peptide_unmodified = pep, mod_residue_position='', peak_group_rank_filter=F, pep_list='', ipf_filter='', ms2_score=T, ipf_score=F )
+            } else {
+              osw_df_all <- .osw_df
+              MazamaCoreUtils::logger.info( "A data.frame object containing peak group scoring data was supplied" )
+            }
             osw_df_all %>%
+              dplyr::filter( grepl( paste0(".*", run_name, ".*"), filename) ) %>%
               dplyr::filter( FullPeptideName %in% uni_mod) %>%
               dplyr::filter( Charge %in% Isoform_Target_Charge )-> osw_df_all_filtered
             
@@ -226,7 +251,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
               MazamaCoreUtils::logger.warn(crayon::red('WARNING: There were no common RT pkgrps found, will plot all pkgrps...\n'))
               RT_pkgrps <- as.numeric(names(RT_Table))
             }
-            rm(osw_df_all, osw_df_all_filtered, RT_Table)
+            # rm(osw_df_all, osw_df_all_filtered, RT_Table)
             
           } else {
             RT_pkgrps <- NULL
@@ -431,6 +456,7 @@ XICMasterPlotFcn_ <- function( dup_peps,
               expr = {
                 g <- mstools::getXIC( graphic_obj = g, 
                                       df_lib = df_lib, 
+                                      df_osw = osw_df,
                                       mod = mod, 
                                       Isoform_Target_Charge = Isoform_Target_Charge,
                                       chromatogram_file = in_sqMass, 

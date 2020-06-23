@@ -24,10 +24,7 @@ tmpDir <- getwd()
 cat('log directory: ', tmpDir, '\n', sep = ' ')
 time_stamp <- format(Sys.time(), "%a_%b_%d_%Hh%Mm%Ss_%Y")
 MazamaCoreUtils::logger.setup(
-  traceLog = file.path( tmpDir, ("mstools-trace.log") ),
-  errorLog = file.path( tmpDir, ("mstools-error.log") ),
-  warnLog = file.path( tmpDir, ("mstools-warn.log") ),
-  infoLog = file.path( tmpDir, ("mstools-info.log") )
+  traceLog = file.path( tmpDir, ("mstools-trace.log") )
 )
 MazamaCoreUtils::logger.setLevel( level='INFO' )
 }

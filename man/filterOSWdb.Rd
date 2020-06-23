@@ -6,8 +6,10 @@
 \usage{
 filterOSWdb(
   osw_file,
-  unmodified_sequence_filter,
-  modified_sequence_filter = NULL
+  unmodified_sequence_filter = NULL,
+  modified_sequence_filter = NULL,
+  random_seed = NULL,
+  ratio_keep = NULL
 )
 }
 \arguments{
@@ -16,6 +18,10 @@ filterOSWdb(
 \item{unmodified_sequence_filter}{A character vector for extraction of specific peptide(s). I.e. c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')}
 
 \item{modified_sequence_filter}{A character vector for extraction of specific peptide(s) with modifications}
+
+\item{random_seed}{(numeric) Set the seed for sampling}
+
+\item{ratio_keep}{(float) Set the fraction of sequences to keep}
 }
 \value{
 A data.table containing spectral library information

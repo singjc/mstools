@@ -10,6 +10,8 @@ XICMasterPlotFcn_(
   sqMass_files,
   in_lib,
   in_osw,
+  .osw_df = NULL,
+  .lib_df = NULL,
   SCORE_IPF = FALSE,
   plotPrecursor = T,
   plotIntersectingDetecting = T,
@@ -50,6 +52,10 @@ XICMasterPlotFcn_(
 \item{in_lib}{A character vector. Full path to a pqp assay library.}
 
 \item{in_osw}{A character vector. Full path to an osw results file.}
+
+\item{.osw_df}{(data.table) A data.table object that contains the osw results peak group scores data}
+
+\item{.lib_df}{(data.table) A data.table object that contains lib information}
 
 \item{SCORE_IPF}{Do you want to extract IPF Score if present? (Default: FALSE. will use MS2 m-scores)}
 

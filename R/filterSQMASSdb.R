@@ -29,6 +29,35 @@ filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter, recreate_in
   if ( DEBUG ){
     sqmass_file <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR/inst/extdata/Synthetic_Dilution_Phosphoproteomics/sqmass/test.sqMass"
     unmodified_sequence_filter <- c('ANSSPTTNIDHLK', 'ESTAEPDSLSR', 'NLSPTKQNGKATHPR', 'KDSNTNIVLLK', 'NKESPTKAIVR')
+    sqmass_file <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/DrawAlignR/inst/extdata/test_data/Synthetic_Dilution_Phosphoproteomics/sqmass/test.sqMass"
+    
+    
+    library(mstools)
+    ##*********************************************
+    ##      Python Setup
+    ##*********************************************
+    
+    if ( !reticulate::py_available()  ){
+      find_python()
+      install_python_dependencies()
+      MazamaCoreUtils::logger.trace( "[mstools::getChromatogramDataPoints_] ** Loading Python Modules **")
+      .onload()
+    }
+    
+    db <- DBI::dbConnect( RSQLite::SQLite(), sqmass_file )
+  
+      
+    meta <- dplyr::collect( dplyr::tbl( db, dbplyr::sql( "select * from RUN_EXTRA" )) )
+    
+    tmp <- pyzlib$decompress(  pybuiltins$bytes( reticulate::r_to_py(meta$DATA[[1]]) ) )
+    
+    # tmp2 <- reticulate::py_to_r( tmp )
+    
+    h <- xml2::read_html( tmp )
+    
+    tmp_outfile <- tempfile( pattern = "meta_data", tmpdir = getwd(), fileext = ".xml")
+    xml2::write_xml(h, tmp_outfile, options = "format")
+    
   }
   
   tryCatch(
@@ -42,7 +71,7 @@ filterSQMASSdb <- function( sqmass_file, unmodified_sequence_filter, recreate_in
       ## Get and Evaluate File Extension Type to ensure an osw file was supplied
       fileType <- tools::file_ext(sqmass_file)
       if( tolower(fileType)!='sqmass' ){
-        MazamaCoreUtils::logger.error( "[mstools::filterSQMASSdb] The supplied file was not a valid OSW database file!\n You provided a file of type: %s", fileType)
+        MazamaCoreUtils::logger.error( "[mstools::filterSQMASSdb] The supplied file was not a valid SQMASS database file!\n You provided a file of type: %s", fileType)
       }
       
       ##************************************************
@@ -153,4 +182,5 @@ WHERE PRECURSOR.PEPTIDE_SEQUENCE NOT IN ('%s')", paste(unmodified_sequence_filte
       MazamaCoreUtils::logger.error("[mstools::filterSQMASSdb] There was the following error that occured during function call...\n", e$message)
     }
   ) # End tryCatch
-}# End functin
+}# End function
+

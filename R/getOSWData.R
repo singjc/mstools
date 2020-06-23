@@ -36,6 +36,7 @@
 #' 
 #' @author Justin Sing \url{https://github.com/singjc}
 #' 
+#' @import data.table
 #' @importFrom DBI dbConnect dbDisconnect
 #' @importFrom RSQLite SQLite 
 #' @importFrom dplyr collect tbl
@@ -83,6 +84,7 @@ getOSWData_ <- function ( oswfile,
     mod_grouping=data.frame( record_id=c(4, 259, 267), rand_char_id="B", stringsAsFactors = F )
     ipf_score=F
     remove_KR_label <- c("UniMod:259", "UniMod:267")
+    oswfile <- "/media/justincsing/ExtraDrive1/Documents2/Roest_Lab/Github/PTMs_Project/phospho_enriched_U2OS/Results/05062020_results_george_lib_repeat/yanliu_I170114_040_PhosNoco10_SW/yanliu_I170114_040_PhosNoco10_SW_MSDATA_RESULTS.osw"
   }
   
   # Check if logging has been initialized
@@ -117,6 +119,7 @@ getOSWData_ <- function ( oswfile,
     join_score_ms1 <- sprintf("LEFT JOIN SCORE_MS1 ON SCORE_MS1.FEATURE_ID = FEATURE.ID")
     select_score_ms1 <- sprintf("SCORE_MS1.PEP AS ms1_pep,")
   } else {
+    MazamaCoreUtils::logger.warn( "[mstools::getOSWData_] There was no SCORE_MS1 Table...\n" )
     join_score_ms1 <- ""
     select_score_ms1 <- ""
   }
@@ -126,27 +129,69 @@ getOSWData_ <- function ( oswfile,
     ### Check if SCORE_IPF table exits
     if(  DBI::dbExistsTable( osw_db, "SCORE_IPF" ) ){
       join_score_ipf <- sprintf("INNER JOIN SCORE_IPF ON SCORE_IPF.FEATURE_ID = FEATURE.ID")
-      select_score_ipf <- sprintf(",
-	   SCORE_IPF.PRECURSOR_PEAKGROUP_PEP AS precursor_pep,
+      select_score_ipf <- sprintf("SCORE_IPF.PRECURSOR_PEAKGROUP_PEP AS precursor_pep,
        SCORE_IPF.PEP AS ipf_pep,
-       SCORE_IPF.QVALUE AS m_score")
+       SCORE_IPF.QVALUE AS m_score,")
       join_peptide <- sprintf("INNER JOIN PEPTIDE ON ( PEPTIDE.ID = PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID OR PEPTIDE.ID = SCORE_IPF.PEPTIDE_ID )")
       miscellaneous_score_ipf_control <- "AND SCORE_IPF.QVALUE IS NOT NULL AND PEPTIDE.MODIFIED_SEQUENCE NOT LIKE '%UniMod%'"
       which_m_score <- "m_score"
+	if(  DBI::dbExistsTable( osw_db, "SCORE_MS2" ) ){
+        which_m_score <- "ms2_m_score"
+        join_score_ms2 <- "INNER JOIN SCORE_MS2 ON SCORE_MS2.FEATURE_ID = FEATURE.ID"
+        select_score_ms2 <- sprintf("SCORE_MS2.PEP AS ms2_pep,
+       SCORE_MS2.RANK AS peak_group_rank,
+       SCORE_MS2.SCORE AS d_score,
+       SCORE_MS2.QVALUE AS ms2_m_score,")
+        order_peak_group_rank <- ", peak_group_rank"
+      } else {
+        MazamaCoreUtils::logger.warn( "[mstools::getOSWData_] There was no SCORE_MS2 Table. Pyprophet scoring was most likely not performed...\n" )
+        which_m_score <- NULL
+        join_score_ms2 <- ""
+        select_score_ms2 <- ""
+        order_peak_group_rank <- ""
+      }
     } else {
       MazamaCoreUtils::logger.error(sprintf("[mstools::getOSWData_] There was no SCORE_IPF table found in: %s\nFalling back to SCORE_MS2 scores only", oswfile))
       join_score_ipf <- ""
       select_score_ipf <- ""
       join_peptide <- sprintf("INNER JOIN PEPTIDE ON PEPTIDE.ID = PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID")
       miscellaneous_score_ipf_control <- ""
-      which_m_score <- "ms2_m_score"
+      if(  DBI::dbExistsTable( osw_db, "SCORE_MS2" ) ){
+        which_m_score <- "ms2_m_score"
+        join_score_ms2 <- "INNER JOIN SCORE_MS2 ON SCORE_MS2.FEATURE_ID = FEATURE.ID"
+        select_score_ms2 <- sprintf("SCORE_MS2.PEP AS ms2_pep,
+       SCORE_MS2.RANK AS peak_group_rank,
+       SCORE_MS2.SCORE AS d_score,
+       SCORE_MS2.QVALUE AS ms2_m_score,")
+        order_peak_group_rank <- ", peak_group_rank"
+      } else {
+        MazamaCoreUtils::logger.warn( "[mstools::getOSWData_] There was no SCORE_MS2 Table. Pyprophet scoring was most likely not performed...\n" )
+        which_m_score <- NULL
+        join_score_ms2 <- ""
+        select_score_ms2 <- ""
+        order_peak_group_rank <- ""
+      }
     }
   } else {
     join_score_ipf <- ""
     select_score_ipf <- ""
     join_peptide <- sprintf("INNER JOIN PEPTIDE ON PEPTIDE.ID = PRECURSOR_PEPTIDE_MAPPING.PEPTIDE_ID")
     miscellaneous_score_ipf_control <- ""
-    which_m_score <- "ms2_m_score"
+    if(  DBI::dbExistsTable( osw_db, "SCORE_MS2" ) ){
+      which_m_score <- "ms2_m_score"
+      join_score_ms2 <- "INNER JOIN SCORE_MS2 ON SCORE_MS2.FEATURE_ID = FEATURE.ID"
+      select_score_ms2 <- sprintf("SCORE_MS2.PEP AS ms2_pep,
+       SCORE_MS2.RANK AS peak_group_rank,
+       SCORE_MS2.SCORE AS d_score,
+       SCORE_MS2.QVALUE AS ms2_m_score,")
+      order_peak_group_rank <- ", peak_group_rank"
+    } else {
+      MazamaCoreUtils::logger.warn( "[mstools::getOSWData_] There was no SCORE_MS2 Table. Pyprophet scoring was most likely not performed...\n" )
+      which_m_score <- NULL
+      join_score_ms2 <- ""
+      select_score_ms2 <- ""
+      order_peak_group_rank <- ""
+    }
   }
   
   ## Filter for a specific precursor id
@@ -185,23 +230,24 @@ getOSWData_ <- function ( oswfile,
   }
   
   ## Filter Peak Group Rank
-  if ( peak_group_rank_filter ){
+  if ( peak_group_rank_filter & DBI::dbExistsTable( osw_db, "SCORE_MS2") ){
     peak_group_rank_filter_query <- "AND SCORE_MS2.RANK=1"
   } else {
     peak_group_rank_filter_query <- ""
   }
   
   ## Filter for a specifc Q_VALUE/M_SCORE
-  if ( names(mscore_filter)=="SCORE_MS2" ){
+  if ( names(mscore_filter)=="SCORE_MS2" & DBI::dbExistsTable( osw_db, "SCORE_MS2") ){
     m_score_filter_query <- sprintf( "AND SCORE_MS2.QVALUE<%s", mscore_filter )
-  } else if ( names(mscore_filter)=="SCORE_IPF" ){
+  } else if ( names(mscore_filter)=="SCORE_IPF" & DBI::dbExistsTable( osw_db, "SCORE_IPF") ){
     m_score_filter_query <- sprintf( "AND SCORE_IPF.QVALUE<%s", mscore_filter )
-  } else if ( names(mscore_filter)=="SCORE_PEPTIDE" ){
+  } else if ( names(mscore_filter)=="SCORE_PEPTIDE" & DBI::dbExistsTable( osw_db, "SCORE_PEPTIDE") ){
     m_score_filter_query <- sprintf( "AND SCORE_PEPTIDE.QVALUE<%s", mscore_filter )
   } else {
     m_score_filter_query <- ""
   }
   
+  ## Filter for a specific modified peptied sequence
   if ( mod_peptide_id[1]!='' & mod_peptide_id[2]!='' ){
     if( ipf_score == TRUE){
       mod_peptide_query = sprintf("WHERE PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s') OR PEPTIDE_IPF.MODIFIED_SEQUENCE=('%s')", mod_peptide_id[1], mod_peptide_id[2]) # PEPTIDE.MODIFIED_SEQUENCE use to correspond with PEPTIDE_IPF.MODIFIED_SEQUENCE. @ Justin
@@ -211,6 +257,8 @@ getOSWData_ <- function ( oswfile,
   } else {
     mod_peptide_query = ''
   }
+  
+  ## Filter for a specific modification position
   if (mod_residue_position!=''){
     if ((mscore_filter != '') && (ipf_filter != '')){
       mod_residue_position_query = sprintf("AND INSTR(FullPeptideName,'(Phospho)')=(%s) OR INSTR(FullPeptideName,'(UniMod:21)')=(%s)", mod_residue_position, mod_residue_position)
@@ -220,6 +268,8 @@ getOSWData_ <- function ( oswfile,
   } else {
     mod_residue_position_query = ''
   }
+  
+  ## Use context level
   if ( inference_level=="peptide_inference" ){
     inference_level_query <- "INNER JOIN SCORE_PEPTIDE ON SCORE_PEPTIDE.PEPTIDE_ID=PEPTIDE.ID"
     select_level_query <- sprintf(", SCORE_PEPTIDE.CONTEXT as context,
@@ -231,103 +281,104 @@ getOSWData_ <- function ( oswfile,
   } else {
     inference_level_query <- ""
   }
-  if (ipf_score == TRUE && ms2_score == TRUE){
-    select_as_stmt = sprintf("SELECT FEATURE.ID AS feature_id,
-       PEPTIDE_IPF.ID AS id_ipf_peptide,
-       PEPTIDE.ID AS id_peptide,
-       PRECURSOR.ID AS id_precursor,
-       --PEPTIDE_IPF.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
-       PEPTIDE.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
-       PRECURSOR.DECOY AS decoy,
-       RUN.ID AS run_id,
-       RUN.FILENAME AS filename,
-       FEATURE.EXP_RT AS RT,
-       FEATURE.EXP_RT - FEATURE.DELTA_RT AS assay_rt,
-       FEATURE.DELTA_RT AS delta_rt,
-       FEATURE.NORM_RT AS iRT,
-       PRECURSOR.LIBRARY_RT AS assay_iRT,
-       FEATURE.NORM_RT - PRECURSOR.LIBRARY_RT AS delta_iRT,
-       FEATURE.ID AS id,
-       --PEPTIDE_IPF.UNMODIFIED_SEQUENCE AS Sequence,
-       --PEPTIDE_IPF.MODIFIED_SEQUENCE AS FullPeptideName,
-       PEPTIDE.UNMODIFIED_SEQUENCE AS Sequence,
-       PEPTIDE.MODIFIED_SEQUENCE AS FullPeptideName,
-       PEPTIDE_IPF.MODIFIED_SEQUENCE AS ipf_FullPeptideName,
-       PRECURSOR.CHARGE AS Charge,
-       PRECURSOR.PRECURSOR_MZ AS mz,
-       FEATURE_MS2.AREA_INTENSITY AS Intensity,
-       %s
-       FEATURE.LEFT_WIDTH AS leftWidth,
-       FEATURE.RIGHT_WIDTH AS rightWidth,
-       %s
-       SCORE_MS2.PEP AS ms2_pep,
-       SCORE_IPF.PRECURSOR_PEAKGROUP_PEP AS precursor_pep,
-       SCORE_IPF.PEP AS ipf_pep,
-       SCORE_MS2.RANK AS peak_group_rank,
-       SCORE_MS2.SCORE AS d_score,
-       SCORE_MS2.QVALUE AS ms2_m_score,
-       SCORE_IPF.QVALUE AS m_score", select_feature_ms1, select_score_ms1 )
-    include_ipf_score = 'LEFT JOIN SCORE_IPF ON SCORE_MS2.FEATURE_ID = SCORE_IPF.FEATURE_ID'
-    
-    if (peak_group_rank_filter == TRUE){
-      pk_grp_rnk_fil_query = 'INNER JOIN PEPTIDE AS PEPTIDE_IPF ON SCORE_IPF.PEPTIDE_ID = PEPTIDE_IPF.ID '
-    } else {
-      pk_grp_rnk_fil_query = 'LEFT JOIN PEPTIDE AS PEPTIDE_IPF ON SCORE_IPF.PEPTIDE_ID = PEPTIDE_IPF.ID'
-    }
-  } else if ((ipf_score == FALSE && ms2_score == TRUE)){
-    select_as_stmt = sprintf("SELECT FEATURE.ID AS feature_id,
-       PEPTIDE.ID AS id_peptide,
-       PRECURSOR.ID AS id_precursor,
-       PEPTIDE.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
-       PRECURSOR.DECOY AS decoy,
-       RUN.ID AS run_id,
-       RUN.FILENAME AS filename,
-       FEATURE.EXP_RT AS RT,
-       FEATURE.EXP_RT - FEATURE.DELTA_RT AS assay_rt,
-       FEATURE.DELTA_RT AS delta_rt,
-       FEATURE.NORM_RT AS iRT,
-       PRECURSOR.LIBRARY_RT AS assay_iRT,
-       FEATURE.NORM_RT - PRECURSOR.LIBRARY_RT AS delta_iRT,
-       FEATURE.ID AS id,
-       PEPTIDE.UNMODIFIED_SEQUENCE AS Sequence,
-       PEPTIDE.MODIFIED_SEQUENCE AS FullPeptideName,
-       PEPTIDE.MODIFIED_SEQUENCE AS ipf_FullPeptideName,
-       PRECURSOR.CHARGE AS Charge,
-       PRECURSOR.PRECURSOR_MZ AS mz,
-       FEATURE_MS2.AREA_INTENSITY AS Intensity,
-       %s
-       FEATURE.LEFT_WIDTH AS leftWidth,
-       FEATURE.RIGHT_WIDTH AS rightWidth,
-       %s
-       SCORE_MS2.PEP AS ms2_pep,
-       SCORE_MS2.RANK AS peak_group_rank,
-       SCORE_MS2.SCORE AS d_score,
-       SCORE_MS2.QVALUE AS ms2_m_score", select_feature_ms1, select_score_ms1 )
-    # print(select_as_stmt)
-    if (peak_group_rank_filter == TRUE){
-      pk_grp_rnk_fil_query = 'WHERE SCORE_MS2.RANK=1'
-    } else {
-      pk_grp_rnk_fil_query = ''
-    }
-    include_ipf_score = ''
-    
-  } else {
-    cat( 'There was an error with the ms2_score or ipf_score argument!!!\n' )
-    cat( sprintf("ms2_score: %s\n", ms2_score) )
-    cat( sprintf("ipf_score: %s\n", ipf_score) )
-  }
   
-  if (pep_list != ''){
-    filter_multiple_peps = sprintf("WHERE PEPTIDE.MODIFIED_SEQUENCE IN (%s)", paste("'" + paste(pep_list, collapse=",") + "'") )
-  } else {
-    filter_multiple_peps = ''
-  }
-  
-  if ((mscore_filter != '') && (ipf_filter != '')){
-    qval_filter_query = sprintf("WHERE SCORE_MS2.QVALUE < %s AND SCORE_IPF.PEP < %s", mscore_filter, ipf_filter)
-  } else {
-    qval_filter_query = ''
-  }
+  # if (ipf_score == TRUE && ms2_score == TRUE){
+  #   select_as_stmt = sprintf("SELECT FEATURE.ID AS feature_id,
+  #      PEPTIDE_IPF.ID AS id_ipf_peptide,
+  #      PEPTIDE.ID AS id_peptide,
+  #      PRECURSOR.ID AS id_precursor,
+  #      --PEPTIDE_IPF.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
+  #      PEPTIDE.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
+  #      PRECURSOR.DECOY AS decoy,
+  #      RUN.ID AS run_id,
+  #      RUN.FILENAME AS filename,
+  #      FEATURE.EXP_RT AS RT,
+  #      FEATURE.EXP_RT - FEATURE.DELTA_RT AS assay_rt,
+  #      FEATURE.DELTA_RT AS delta_rt,
+  #      FEATURE.NORM_RT AS iRT,
+  #      PRECURSOR.LIBRARY_RT AS assay_iRT,
+  #      FEATURE.NORM_RT - PRECURSOR.LIBRARY_RT AS delta_iRT,
+  #      FEATURE.ID AS id,
+  #      --PEPTIDE_IPF.UNMODIFIED_SEQUENCE AS Sequence,
+  #      --PEPTIDE_IPF.MODIFIED_SEQUENCE AS FullPeptideName,
+  #      PEPTIDE.UNMODIFIED_SEQUENCE AS Sequence,
+  #      PEPTIDE.MODIFIED_SEQUENCE AS FullPeptideName,
+  #      PEPTIDE_IPF.MODIFIED_SEQUENCE AS ipf_FullPeptideName,
+  #      PRECURSOR.CHARGE AS Charge,
+  #      PRECURSOR.PRECURSOR_MZ AS mz,
+  #      FEATURE_MS2.AREA_INTENSITY AS Intensity,
+  #      %s
+  #      FEATURE.LEFT_WIDTH AS leftWidth,
+  #      FEATURE.RIGHT_WIDTH AS rightWidth,
+  #      %s
+  #      SCORE_MS2.PEP AS ms2_pep,
+  #      SCORE_IPF.PRECURSOR_PEAKGROUP_PEP AS precursor_pep,
+  #      SCORE_IPF.PEP AS ipf_pep,
+  #      SCORE_MS2.RANK AS peak_group_rank,
+  #      SCORE_MS2.SCORE AS d_score,
+  #      SCORE_MS2.QVALUE AS ms2_m_score,
+  #      SCORE_IPF.QVALUE AS m_score", select_feature_ms1, select_score_ms1 )
+  #   include_ipf_score = 'LEFT JOIN SCORE_IPF ON SCORE_MS2.FEATURE_ID = SCORE_IPF.FEATURE_ID'
+  #   
+  #   if (peak_group_rank_filter == TRUE){
+  #     pk_grp_rnk_fil_query = 'INNER JOIN PEPTIDE AS PEPTIDE_IPF ON SCORE_IPF.PEPTIDE_ID = PEPTIDE_IPF.ID '
+  #   } else {
+  #     pk_grp_rnk_fil_query = 'LEFT JOIN PEPTIDE AS PEPTIDE_IPF ON SCORE_IPF.PEPTIDE_ID = PEPTIDE_IPF.ID'
+  #   }
+  # } else if ((ipf_score == FALSE && ms2_score == TRUE)){
+  #   select_as_stmt = sprintf("SELECT FEATURE.ID AS feature_id,
+  #      PEPTIDE.ID AS id_peptide,
+  #      PRECURSOR.ID AS id_precursor,
+  #      PEPTIDE.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
+  #      PRECURSOR.DECOY AS decoy,
+  #      RUN.ID AS run_id,
+  #      RUN.FILENAME AS filename,
+  #      FEATURE.EXP_RT AS RT,
+  #      FEATURE.EXP_RT - FEATURE.DELTA_RT AS assay_rt,
+  #      FEATURE.DELTA_RT AS delta_rt,
+  #      FEATURE.NORM_RT AS iRT,
+  #      PRECURSOR.LIBRARY_RT AS assay_iRT,
+  #      FEATURE.NORM_RT - PRECURSOR.LIBRARY_RT AS delta_iRT,
+  #      FEATURE.ID AS id,
+  #      PEPTIDE.UNMODIFIED_SEQUENCE AS Sequence,
+  #      PEPTIDE.MODIFIED_SEQUENCE AS FullPeptideName,
+  #      PEPTIDE.MODIFIED_SEQUENCE AS ipf_FullPeptideName,
+  #      PRECURSOR.CHARGE AS Charge,
+  #      PRECURSOR.PRECURSOR_MZ AS mz,
+  #      FEATURE_MS2.AREA_INTENSITY AS Intensity,
+  #      %s
+  #      FEATURE.LEFT_WIDTH AS leftWidth,
+  #      FEATURE.RIGHT_WIDTH AS rightWidth,
+  #      %s
+  #      SCORE_MS2.PEP AS ms2_pep,
+  #      SCORE_MS2.RANK AS peak_group_rank,
+  #      SCORE_MS2.SCORE AS d_score,
+  #      SCORE_MS2.QVALUE AS ms2_m_score", select_feature_ms1, select_score_ms1 )
+  #   # print(select_as_stmt)
+  #   if (peak_group_rank_filter == TRUE){
+  #     pk_grp_rnk_fil_query = 'WHERE SCORE_MS2.RANK=1'
+  #   } else {
+  #     pk_grp_rnk_fil_query = ''
+  #   }
+  #   include_ipf_score = ''
+  #   
+  # } else {
+  #   cat( 'There was an error with the ms2_score or ipf_score argument!!!\n' )
+  #   cat( sprintf("ms2_score: %s\n", ms2_score) )
+  #   cat( sprintf("ipf_score: %s\n", ipf_score) )
+  # }
+  # 
+  # if (pep_list != ''){
+  #   filter_multiple_peps = sprintf("WHERE PEPTIDE.MODIFIED_SEQUENCE IN (%s)", paste("'" + paste(pep_list, collapse=",") + "'") )
+  # } else {
+  #   filter_multiple_peps = ''
+  # }
+  # 
+  # if ((mscore_filter != '') && (ipf_filter != '')){
+  #   qval_filter_query = sprintf("WHERE SCORE_MS2.QVALUE < %s AND SCORE_IPF.PEP < %s", mscore_filter, ipf_filter)
+  # } else {
+  #   qval_filter_query = ''
+  # }
   
   
   
@@ -354,13 +405,11 @@ getOSWData_ <- function ( oswfile,
   # ", select_as_stmt, decoy_filter_query, peptide_query, precursor_query, run_id_query, join_feature_ms1, join_score_ms1, include_ipf_score, pk_grp_rnk_fil_query, filter_multiple_peps, qval_filter_query, mod_peptide_query, mod_residue_position_query)
   #   
   stmt = sprintf(
-    "
-     SELECT 
+    "SELECT 
 FEATURE.ID AS feature_id,
        PEPTIDE.ID AS id_peptide,
        PRECURSOR.ID AS id_precursor,
        PEPTIDE.MODIFIED_SEQUENCE || '_' || PRECURSOR.ID AS transition_group_id,
-       PRECURSOR.DECOY AS decoy,
        RUN.ID AS run_id,
        RUN.FILENAME AS filename,
        FEATURE.EXP_RT AS RT,
@@ -378,17 +427,15 @@ FEATURE.ID AS feature_id,
        FEATURE.LEFT_WIDTH AS leftWidth,
        FEATURE.RIGHT_WIDTH AS rightWidth,
        %s -- SCORE_MS1 select statements #select_score_ms1
-       SCORE_MS2.PEP AS ms2_pep,
-       SCORE_MS2.RANK AS peak_group_rank,
-       SCORE_MS2.SCORE AS d_score,
-       SCORE_MS2.QVALUE AS ms2_m_score
+       %s -- SCORE_MS2 select statements #select_score_ms2
        %s -- SCORE_IPF select statements #select_score_ipf
+       PRECURSOR.DECOY AS decoy
 FROM FEATURE
 INNER JOIN RUN ON RUN.ID = FEATURE.RUN_ID
 %s -- Join FEATURE_MS1 Table if available #join_feature_ms1
 INNER JOIN FEATURE_MS2 ON FEATURE_MS2.FEATURE_ID = FEATURE.ID
 %s -- Join SCORE_MS1 Table if available #join_score_ms1
-INNER JOIN SCORE_MS2 ON SCORE_MS2.FEATURE_ID = FEATURE.ID
+%s -- Join SCORE_MS2 Table if available #join_score_ms2
 %s -- Join SCORE_IPF Table if available #join_score_ipf
 INNER JOIN PRECURSOR ON PRECURSOR.ID = FEATURE.PRECURSOR_ID %s -- Filter for Decoyrs #decoy_filter_query
 INNER JOIN PRECURSOR_PEPTIDE_MAPPING ON PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID = FEATURE.PRECURSOR_ID
@@ -402,10 +449,10 @@ WHERE FEATURE.ID IS NOT NULL -- Default WHERE Being clause
 %s -- Filter for specific RUN.ID #run_id_query
 %s -- Filter for PeakGroupRank=1 #peak_group_rank_filter_query
 %s -- Filter for a specific level of Q-Value. (SCORE_MS2, SCORE_IPF, SCORE_PEPTIDE)
-ORDER BY transition_group_id,
-         peak_group_rank
-", select_feature_ms1, select_score_ms1, select_score_ipf, join_feature_ms1, join_score_ms1, join_score_ipf, decoy_filter_query, join_peptide, 
-    miscellaneous_score_ipf_control, precursor_query, peptide_query, peptide_unmodified_query, peptide_modified_query, run_id_query, peak_group_rank_filter_query, m_score_filter_query )
+ORDER BY transition_group_id
+%s -- Add second level of order using peak_group_rank, if SCORE_MS2 is present. #order_peak_group_rank
+", select_feature_ms1, select_score_ms1, select_score_ms2, select_score_ipf, join_feature_ms1, join_score_ms1, join_score_ms2, join_score_ipf, decoy_filter_query, join_peptide, 
+    miscellaneous_score_ipf_control, precursor_query, peptide_query, peptide_unmodified_query, peptide_modified_query, run_id_query, peak_group_rank_filter_query, m_score_filter_query, order_peak_group_rank )
   
   # Query Databasse
   MazamaCoreUtils::logger.trace(sprintf("[mstools::getOSWData_] QueryingDatabase: %s\n", stmt))
@@ -443,7 +490,8 @@ INNER JOIN PRECURSOR ON PRECURSOR.ID = PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID" )
   # df_osw %>%
   #   dplyr::filter( paste(df_osw$FullPeptideName, df_osw$id_precursor, sep="_") %in% unlist(lapply(seq(1:dim(df_precursor_peptide_mapping_table)[1]), function(x){ gsub("*\\d+$", df_precursor_peptide_mapping_table$ID[x], df_precursor_peptide_mapping_table$TRAML_ID[x]) } )) ) -> df_osw
   # 
-  df_osw$FullPeptideName.unimod <- unlist(lapply(df_osw$FullPeptideName, mstools::codenameTounimod))
+  df_osw <- data.table::as.data.table(df_osw)
+  df_osw[, FullPeptideName.unimod := mstools::codenameTounimod(FullPeptideName) ]
   
   ## Get the original assay peptide being tested.
   df_osw %>%
@@ -544,10 +592,12 @@ INNER JOIN PRECURSOR ON PRECURSOR.ID = PRECURSOR_PEPTIDE_MAPPING.PRECURSOR_ID" )
   MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_(#R:405)] Dimensions of OSW Results file: ", paste(dim(df_osw), collapse = ", "), "\n"))
   
   # Ensure UniMod Mapping Convention
-  df_osw$FullPeptideName <- unlist(lapply( df_osw$FullPeptideName, mstools::codenameTounimod ))
+  df_osw <- data.table::as.data.table(df_osw)
+  df_osw[, FullPeptideName := mstools::codenameTounimod(FullPeptideName) ]
+  
   
   # Append isomer character id
-  df_osw$isomer_char_id <- unlist(lapply( df_osw$FullPeptideName, mstools::unimodTouniisoid, mod_exclusion=mod_exclusion, mod_grouping=mod_grouping ))
+  df_osw[, isomer_char_id := mstools::unimodTouniisoid( FullPeptideName, mod_exclusion=mod_exclusion, mod_grouping=mod_grouping ) ]
   
   MazamaCoreUtils::logger.trace(paste("[mstools::getOSWData_(#R:490)] Dimensions of OSW Results file: ", paste(dim(df_osw), collapse = ", "), "\n"))
   
